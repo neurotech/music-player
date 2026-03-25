@@ -195,10 +195,10 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-3 py-2 text-sm text-zinc-500 border-b border-zinc-800 bg-zinc-800/50">
+        <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 text-sm text-zinc-500 border-b border-zinc-800 bg-zinc-800/50">
           <span className="w-6 text-center">#</span>
           <span>Title</span>
-          <span className="w-12 text-right">Duration</span>
+          <span className="text-right">Duration</span>
         </div>
 
         {album.song?.map((song, index) => {
@@ -208,7 +208,7 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
               type="button"
               key={song.id}
               onClick={() => handlePlayTrack(song, index)}
-              className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-3 py-2 hover:bg-zinc-800/70 transition-colors group text-left cursor-pointer ${isPlaying ? "bg-indigo-500/10" : ""}`}
+              className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 hover:bg-zinc-800/40 transition-colors group text-left cursor-pointer ${isPlaying ? "bg-zinc-950/70" : ""}`}
             >
               {isPlaying ? (
                 <span className="w-6 text-center text-indigo-400">
