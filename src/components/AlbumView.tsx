@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { player } from "../lib/player";
+import { type PlayerState, player } from "../lib/player";
 import type { AlbumWithSongs, Song, SubsonicClient } from "../lib/subsonic";
 
 interface AlbumViewProps {
@@ -14,11 +14,43 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+function AnimatedText({ text }: { text: string }) {
+  const chars = text.split("").map((char, i) => ({
+    char,
+    id: `char-${i}`,
+    delay: i * 100,
+  }));
+
+  return (
+    <span className="inline-flex">
+      {chars.map(({ char, id, delay }) => (
+        <span
+          key={id}
+          className="inline-block animate-wobble"
+          style={{ animationDelay: `${delay}ms` }}
+        >
+          <span
+            className="animate-rainbow"
+            style={{ animationDelay: `${delay}ms` }}
+          >
+            {char === " " ? "\u00A0" : char}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const [album, setAlbum] = useState<AlbumWithSongs | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playerState, setPlayerState] = useState<PlayerState>(player.getState());
+
+  useEffect(() => {
+    return player.subscribe(setPlayerState);
+  }, []);
 
   useEffect(() => {
     async function fetchAlbum() {
@@ -169,39 +201,57 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
           <span className="w-12 text-right">Duration</span>
         </div>
 
-        {album.song?.map((song, index) => (
-          <button
-            type="button"
-            key={song.id}
-            onClick={() => handlePlayTrack(song, index)}
-            className="w-full grid grid-cols-[auto_1fr_auto] gap-3 px-3 py-2 hover:bg-zinc-800/70 transition-colors group text-left cursor-pointer"
-          >
-            <span className="w-6 text-center text-sm text-zinc-500 group-hover:hidden">
-              {song.track || index + 1}
-            </span>
-            <span className="w-6 text-center text-indigo-400 hidden group-hover:block">
-              <svg
-                className="w-3 h-3 mx-auto"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm text-zinc-200 truncate group-hover:text-indigo-400 transition-colors">
-                {song.title}
-              </p>
-              {song.artist !== album.artist && (
-                <p className="text-sm text-zinc-500 truncate">{song.artist}</p>
+        {album.song?.map((song, index) => {
+          const isPlaying = playerState.currentTrack?.id === song.id;
+          return (
+            <button
+              type="button"
+              key={song.id}
+              onClick={() => handlePlayTrack(song, index)}
+              className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-3 py-2 hover:bg-zinc-800/70 transition-colors group text-left cursor-pointer ${isPlaying ? "bg-indigo-500/10" : ""}`}
+            >
+              {isPlaying ? (
+                <span className="w-6 text-center text-indigo-400">
+                  <svg
+                    className="w-3 h-5 mx-auto"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              ) : (
+                <>
+                  <span className="w-6 text-center text-sm text-zinc-500 group-hover:hidden">
+                    {song.track || index + 1}
+                  </span>
+                  <span className="w-6 text-center text-indigo-400 hidden group-hover:block">
+                    <svg
+                      className="w-3 h-5 mx-auto"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                </>
               )}
-            </div>
-            <span className="w-12 text-right text-sm text-zinc-500">
-              {formatDuration(song.duration)}
-            </span>
-          </button>
-        ))}
+              <div className="min-w-0">
+                <p className={`text-sm transition-colors ${isPlaying ? "" : "truncate text-zinc-200 group-hover:text-indigo-400"}`}>
+                  {isPlaying ? <AnimatedText text={song.title} /> : song.title}
+                </p>
+                {song.artist !== album.artist && (
+                  <p className="text-sm text-zinc-500 truncate">{song.artist}</p>
+                )}
+              </div>
+              <span className={`w-12 text-right text-sm ${isPlaying ? "text-indigo-400" : "text-zinc-500"}`}>
+                {formatDuration(song.duration)}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export function NowPlayingHeader({ client, onAlbumClick }: NowPlayingHeaderProps
         <img
           src={coverUrl}
           alt={state.currentTrack.album}
-          className="w-10 h-10 rounded-sm border border-zinc-800"
+          className="w-13 h-13 rounded-sm border border-zinc-800"
         />
       ) : (
         <div className="w-10 h-10 rounded-sm bg-zinc-800 border border-zinc-700 flex items-center justify-center">
@@ -60,7 +60,7 @@ export function NowPlayingHeader({ client, onAlbumClick }: NowPlayingHeaderProps
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-xs text-zinc-500 uppercase tracking-wide">Now Playing</p>
+        <p className="text-xs text-zinc-500 uppercase tracking-wide">🎵 Now Playing</p>
         <p className="font-medium text-sm text-zinc-200 truncate">
           {state.currentTrack.title}
         </p>
