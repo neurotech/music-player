@@ -1,3 +1,4 @@
+import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { useEffect, useState } from "react";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { AlbumView } from "./components/AlbumView";
@@ -43,6 +44,66 @@ function App() {
       .catch((err) => {
         console.error("Failed to load credentials:", err);
       });
+  }, []);
+
+  useEffect(() => {
+    const NEXT_TRACK_SHORTCUT = "Control+Command+PageDown";
+    const PREV_TRACK_SHORTCUT = "Control+Command+PageUp";
+    const PLAY_PAUSE_SHORTCUT = "Control+Command+Home";
+    const VOLUME_UP_SHORTCUT = "Control+Command+ArrowUp";
+    const VOLUME_DOWN_SHORTCUT = "Control+Command+ArrowDown";
+
+    const VOLUME_STEP = 0.05;
+
+    async function registerShortcuts() {
+      try {
+        await unregister(NEXT_TRACK_SHORTCUT).catch(() => {});
+        await unregister(PREV_TRACK_SHORTCUT).catch(() => {});
+        await unregister(PLAY_PAUSE_SHORTCUT).catch(() => {});
+        await unregister(VOLUME_UP_SHORTCUT).catch(() => {});
+        await unregister(VOLUME_DOWN_SHORTCUT).catch(() => {});
+
+        await register(NEXT_TRACK_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            player.next();
+          }
+        });
+        await register(PREV_TRACK_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            player.previous();
+          }
+        });
+        await register(PLAY_PAUSE_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            player.togglePlayPause();
+          }
+        });
+        await register(VOLUME_UP_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            const currentVolume = player.getState().volume;
+            player.setVolume(currentVolume + VOLUME_STEP);
+          }
+        });
+        await register(VOLUME_DOWN_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            const currentVolume = player.getState().volume;
+            player.setVolume(currentVolume - VOLUME_STEP);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to register global shortcuts:", err);
+      }
+    }
+
+    registerShortcuts();
+
+    return () => {
+      unregister(NEXT_TRACK_SHORTCUT).catch(() => {});
+      unregister(PREV_TRACK_SHORTCUT).catch(() => {});
+      unregister(PLAY_PAUSE_SHORTCUT).catch(() => {});
+      unregister(VOLUME_UP_SHORTCUT).catch(() => {});
+      unregister(VOLUME_DOWN_SHORTCUT).catch(() => {});
+    };
   }, []);
 
   async function handleConnect(credentials: SubsonicCredentials) {
