@@ -78,6 +78,16 @@ interface PingResponse {
   version: string;
 }
 
+export interface SearchResult {
+  artist?: { id: string; name: string }[];
+  album?: Album[];
+  song?: Song[];
+}
+
+interface SearchResponse {
+  searchResult3: SearchResult;
+}
+
 function generateSalt(length = 8): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let salt = "";
@@ -416,6 +426,16 @@ export class SubsonicClient {
 
     const baseUrl = this.credentials.serverUrl.replace(/\/$/, "");
     return `${baseUrl}/rest/stream?${authParams.toString()}`;
+  }
+
+  async search(query: string): Promise<SearchResult> {
+    const response = await this.request<SearchResponse>("search3", {
+      query,
+      artistCount: "0",
+      albumCount: "100",
+      songCount: "100",
+    });
+    return response.searchResult3 || {};
   }
 }
 

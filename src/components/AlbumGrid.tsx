@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Album, AlbumListType, SubsonicClient } from "../lib/subsonic";
 
 interface AlbumGridProps {
@@ -99,6 +99,10 @@ export const AlbumGrid = memo(function AlbumGrid({
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const [sortType, setSortType] = useState<AlbumListType>("newest");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Album[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchAlbums = useCallback(async () => {
     try {
@@ -138,17 +142,171 @@ export const AlbumGrid = memo(function AlbumGrid({
     }
   }, [client, sortType, sortDirection]);
 
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setSearchResults(null);
+        setIsSearching(false);
+        return;
+      }
+
+      try {
+        setIsSearching(true);
+        const results = await client.search(query);
+
+        const albumMap = new Map<string, Album>();
+
+        if (results.album) {
+          for (const album of results.album) {
+            albumMap.set(album.id, album);
+          }
+        }
+
+        if (results.song) {
+          for (const song of results.song) {
+            if (song.albumId && !albumMap.has(song.albumId)) {
+              albumMap.set(song.albumId, {
+                id: song.albumId,
+                name: song.album,
+                artist: song.artist,
+                artistId: song.artistId,
+                coverArt: song.coverArt,
+                songCount: 0,
+                duration: 0,
+              });
+            }
+          }
+        }
+
+        const uniqueAlbums = Array.from(albumMap.values());
+        setSearchResults(uniqueAlbums);
+
+        const newUrls: Record<string, string> = { ...coverUrls };
+        const urlEntries = await Promise.all(
+          uniqueAlbums
+            .filter((album) => album.coverArt && !newUrls[album.id])
+            .map(async (album) => {
+              const url = await client.getCoverArtUrlWithAuth(
+                album.coverArt!,
+                300,
+              );
+              return [album.id, url] as const;
+            }),
+        );
+
+        for (const entry of urlEntries) {
+          newUrls[entry[0]] = entry[1];
+        }
+        setCoverUrls(newUrls);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [client, coverUrls],
+  );
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const query = e.target.value;
+      setSearchQuery(query);
+
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      if (!query.trim()) {
+        setSearchResults(null);
+        return;
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        performSearch(query);
+      }, 300);
+    },
+    [performSearch],
+  );
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults(null);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAlbums();
   }, [fetchAlbums]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function toggleDirection() {
     setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
   }
 
+  const displayAlbums = searchResults !== null ? searchResults : albums;
+  const showSearchLoading = isSearching && searchQuery.trim();
+
   return (
     <div className="w-full">
-      <div className="flex flex-wrap justify-end items-center gap-3 mb-4">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <input
+            type="text"
+            placeholder="Search albums, artists, tracks..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full pl-8 pr-8 py-1 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+          <svg
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="Search"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Clear search"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                role="img"
+                aria-label="Clear"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
         <div className="flex items-center gap-2">
           <label htmlFor="sort-select" className="text-sm text-zinc-500">
             Sort:
@@ -157,7 +315,8 @@ export const AlbumGrid = memo(function AlbumGrid({
             id="sort-select"
             value={sortType}
             onChange={(e) => setSortType(e.target.value as AlbumListType)}
-            className="px-2 py-1 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            disabled={searchResults !== null}
+            className="px-2 py-1 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.type} value={option.type}>
@@ -246,11 +405,17 @@ export const AlbumGrid = memo(function AlbumGrid({
         <div className="flex flex-col items-center justify-center h-64 gap-3">
           <p className="text-sm text-red-400">{error}</p>
         </div>
-      ) : albums.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center">No albums found</p>
+      ) : showSearchLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-sm text-zinc-500">Searching...</div>
+        </div>
+      ) : displayAlbums.length === 0 ? (
+        <p className="text-sm text-zinc-500 text-center">
+          {searchQuery ? "No results found" : "No albums found"}
+        </p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {albums.map((album) => (
+          {displayAlbums.map((album) => (
             <AlbumCard
               key={album.id}
               album={album}
