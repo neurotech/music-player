@@ -1,5 +1,4 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import type { Album, AlbumListType, SubsonicClient } from "../lib/subsonic";
 
 interface AlbumGridProps {
@@ -27,7 +26,7 @@ const AlbumCard = memo(function AlbumCard({
   return (
     <button
       type="button"
-      className="group cursor-pointer text-left"
+      className="group cursor-pointer text-left flex flex-col items-start"
       style={{ contain: "layout style paint" }}
       title={`${album.name} by ${album.artist}`}
       onClick={handleClick}
@@ -55,11 +54,21 @@ const AlbumCard = memo(function AlbumCard({
           </div>
         )}
       </div>
-      <h3 className="font-medium text-sm truncate text-zinc-200 group-hover:text-indigo-400">
-        {album.name}
-      </h3>
-      <p className="text-zinc-500 text-sm truncate">{album.artist}</p>
-      {album.year && <p className="text-zinc-600 text-sm">{album.year}</p>}
+      {album.name && album.name !== "[Unknown Album]" ? (
+        <>
+          <h3 className="font-medium text-sm truncate text-zinc-200 group-hover:text-indigo-400">
+            {album.name}
+          </h3>
+          <p className="text-zinc-500 text-sm truncate">{album.artist}</p>
+        </>
+      ) : (
+        <>
+          <h3 className="font-medium text-sm truncate text-zinc-200 group-hover:text-indigo-400">
+            {album.artist}
+          </h3>
+          <p className="text-zinc-800 text-sm truncate">?</p>
+        </>
+      )}
     </button>
   );
 });
@@ -79,38 +88,8 @@ const SORT_OPTIONS: SortConfig[] = [
   { type: "alphabeticalByArtist", label: "Artist" },
 ];
 
-const COLUMN_COUNTS = {
-  base: 3,
-  sm: 4,
-  md: 5,
-  lg: 6,
-  xl: 8,
-};
-
-function useColumnCount() {
-  const [columnCount, setColumnCount] = useState(COLUMN_COUNTS.base);
-
-  useEffect(() => {
-    function updateColumnCount() {
-      const width = window.innerWidth;
-      if (width >= 1280) setColumnCount(COLUMN_COUNTS.xl);
-      else if (width >= 1024) setColumnCount(COLUMN_COUNTS.lg);
-      else if (width >= 768) setColumnCount(COLUMN_COUNTS.md);
-      else if (width >= 640) setColumnCount(COLUMN_COUNTS.sm);
-      else setColumnCount(COLUMN_COUNTS.base);
-    }
-
-    updateColumnCount();
-    window.addEventListener("resize", updateColumnCount);
-    return () => window.removeEventListener("resize", updateColumnCount);
-  }, []);
-
-  return columnCount;
-}
-
 export const AlbumGrid = memo(function AlbumGrid({
   client,
-  onDisconnect,
   onAlbumClick,
   onOpenSettings,
 }: AlbumGridProps) {
@@ -120,8 +99,6 @@ export const AlbumGrid = memo(function AlbumGrid({
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const [sortType, setSortType] = useState<AlbumListType>("newest");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const parentRef = useRef<HTMLDivElement>(null);
-  const columnCount = useColumnCount();
 
   const fetchAlbums = useCallback(async () => {
     try {
@@ -169,33 +146,9 @@ export const AlbumGrid = memo(function AlbumGrid({
     setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
   }
 
-  const rowCount = Math.ceil(albums.length / columnCount);
-  const ROW_HEIGHT = 200;
-  const GAP = 12;
-
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT + GAP,
-    overscan: 2,
-  });
-
-  const albumRows = useMemo(() => {
-    const rows: Album[][] = [];
-    for (let i = 0; i < albums.length; i += columnCount) {
-      rows.push(albums.slice(i, i + columnCount));
-    }
-    return rows;
-  }, [albums, columnCount]);
-
   return (
     <div className="w-full">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
-        <h2 className="text-sm font-semibold text-zinc-100">
-          Albums{" "}
-          <span className="text-zinc-500 font-normal">({albums.length})</span>
-        </h2>
-
+      <div className="flex flex-wrap justify-end items-center gap-3 mb-4">
         <div className="flex items-center gap-2">
           <label htmlFor="sort-select" className="text-sm text-zinc-500">
             Sort:
@@ -282,14 +235,6 @@ export const AlbumGrid = memo(function AlbumGrid({
               />
             </svg>
           </button>
-
-          <button
-            type="button"
-            onClick={onDisconnect}
-            className="px-2 py-1 text-sm font-semibold rounded-sm border border-zinc-900 bg-red-600 bg-linear-to-b from-red-400/60 to-red-800 hover:from-red-400/90 hover:to-red-800/80 transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none ml-1"
-          >
-            Disconnect
-          </button>
         </div>
       </div>
 
@@ -304,53 +249,15 @@ export const AlbumGrid = memo(function AlbumGrid({
       ) : albums.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center">No albums found</p>
       ) : (
-        <div
-          ref={parentRef}
-          className="h-[calc(100vh-10rem)] overflow-auto"
-          style={{ contain: "strict" }}
-        >
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const rowAlbums = albumRows[virtualRow.index];
-              return (
-                <div
-                  key={virtualRow.key}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                  className="grid gap-3"
-                  data-grid-cols={columnCount}
-                >
-                  <div
-                    className="grid gap-3"
-                    style={{
-                      gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {rowAlbums.map((album) => (
-                      <AlbumCard
-                        key={album.id}
-                        album={album}
-                        coverUrl={coverUrls[album.id]}
-                        onAlbumClick={onAlbumClick}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {albums.map((album) => (
+            <AlbumCard
+              key={album.id}
+              album={album}
+              coverUrl={coverUrls[album.id]}
+              onAlbumClick={onAlbumClick}
+            />
+          ))}
         </div>
       )}
     </div>
