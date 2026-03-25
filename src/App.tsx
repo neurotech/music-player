@@ -97,7 +97,7 @@ function App() {
                 onOpenSettings={() => setIsSettingsOpen(true)}
               />
             )}
-            <PlayerBar client={client} />
+            <PlayerBar client={client} onAlbumClick={setSelectedAlbumId} />
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={() => setIsSettingsOpen(false)}
