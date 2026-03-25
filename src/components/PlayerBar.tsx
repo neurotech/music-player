@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
 import { type PlayerState, player } from "../lib/player";
-import type { SubsonicClient } from "../lib/subsonic";
-
-interface PlayerBarProps {
-  client: SubsonicClient;
-  onAlbumClick?: (albumId: string) => void;
-}
 
 function formatTime(seconds: number): string {
   if (!seconds || !Number.isFinite(seconds)) return "0:00";
@@ -14,28 +8,12 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function PlayerBar({ client, onAlbumClick }: PlayerBarProps) {
+export function PlayerBar() {
   const [state, setState] = useState<PlayerState>(player.getState());
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
   useEffect(() => {
     return player.subscribe(setState);
   }, []);
-
-  useEffect(() => {
-    async function loadCover() {
-      if (state.currentTrack?.coverArt) {
-        const url = await client.getCoverArtUrlWithAuth(
-          state.currentTrack.coverArt,
-          100,
-        );
-        setCoverUrl(url);
-      } else {
-        setCoverUrl(null);
-      }
-    }
-    loadCover();
-  }, [state.currentTrack, client]);
 
   if (!state.currentTrack) {
     return null;
@@ -45,79 +23,42 @@ export function PlayerBar({ client, onAlbumClick }: PlayerBarProps) {
     state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 px-2 py-2 shadow-[0_-1px_rgba(255,255,255,0.05)_inset]">
-      <div className="flex items-center justify-between gap-10">
-        {/* Track info */}
-        <div className="flex flex-col gap-2 min-w-0 w-full">
-          <button
-            type="button"
-            onClick={() => onAlbumClick?.(state.currentTrack!.albumId)}
-            className="flex items-center gap-2 min-w-0 hover:bg-zinc-800 rounded-sm p-1 transition-colors cursor-pointer group"
+    <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 px-4 py-2 shadow-[0_-1px_rgba(255,255,255,0.05)_inset]">
+      <div className="flex items-center gap-4">
+        {/* Progress bar */}
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-xs text-zinc-500 w-8 text-right">
+            {formatTime(state.currentTime)}
+          </span>
+          <div
+            className="flex-1 h-1 bg-zinc-800 rounded-sm cursor-pointer group"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const percent = (e.clientX - rect.left) / rect.width;
+              player.seek(percent * state.duration);
+            }}
+            onKeyDown={() => {}}
+            role="slider"
+            aria-label="Seek"
+            aria-valuenow={state.currentTime}
+            aria-valuemin={0}
+            aria-valuemax={state.duration}
+            tabIndex={0}
           >
-            {coverUrl ? (
-              <img
-                src={coverUrl}
-                alt={state.currentTrack.album}
-                className="w-9 h-9 rounded-sm border border-zinc-800"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-sm bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <svg
-                  className="w-4 h-4 text-zinc-600"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  role="img"
-                  aria-label="No cover"
-                >
-                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                </svg>
-              </div>
-            )}
-            <div className="min-w-0 text-left">
-              <p className="font-medium text-sm text-zinc-200 truncate group-hover:text-indigo-400 transition-colors">
-                {state.currentTrack.title}
-              </p>
-              <p className="text-zinc-500 text-sm truncate group-hover:text-zinc-400 transition-colors">
-                {state.currentTrack.artist}
-              </p>
-            </div>
-          </button>
-
-          {/* Progress bar */}
-          <div className="flex items-center gap-2 w-full">
-            <span className="text-xs text-zinc-500 w-8 text-right">
-              {formatTime(state.currentTime)}
-            </span>
             <div
-              className="flex-1 h-1 bg-zinc-800 rounded-sm cursor-pointer group"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                player.seek(percent * state.duration);
-              }}
-              onKeyDown={() => {}}
-              role="slider"
-              aria-label="Seek"
-              aria-valuenow={state.currentTime}
-              aria-valuemin={0}
-              aria-valuemax={state.duration}
-              tabIndex={0}
+              className="h-full bg-indigo-500 rounded-sm relative group-hover:bg-indigo-400 transition-colors"
+              style={{ width: `${progress}%` }}
             >
-              <div
-                className="h-full bg-indigo-500 rounded-sm relative group-hover:bg-indigo-400 transition-colors"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <span className="text-sm text-zinc-500 w-8">
-              {formatTime(state.duration)}
-            </span>
           </div>
+          <span className="text-sm text-zinc-500 w-8">
+            {formatTime(state.duration)}
+          </span>
         </div>
 
         {/* Controls and Volume */}
-        <div className="flex items-center gap-4 justify-self-end">
+        <div className="flex items-center gap-4">
           {/* Controls */}
           <div className="flex items-center gap-2">
             <button

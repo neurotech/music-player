@@ -1,8 +1,9 @@
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { AlbumView } from "./components/AlbumView";
 import { ConnectionForm } from "./components/ConnectionForm";
+import { NowPlayingHeader } from "./components/NowPlayingHeader";
 import { PlayerBar } from "./components/PlayerBar";
 import { SettingsModal } from "./components/SettingsModal";
 import { player } from "./lib/player";
@@ -22,6 +23,42 @@ function App() {
     useState<SubsonicCredentials | null>(null);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Navigation history for mouse back/forward buttons
+  const historyStack = useRef<(string | null)[]>([null]);
+  const historyIndex = useRef(0);
+  const isNavigatingRef = useRef(false);
+
+  const navigateTo = useCallback((albumId: string | null) => {
+    if (isNavigatingRef.current) {
+      setSelectedAlbumId(albumId);
+      return;
+    }
+
+    // Truncate forward history when navigating to a new location
+    historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
+    historyStack.current.push(albumId);
+    historyIndex.current = historyStack.current.length - 1;
+    setSelectedAlbumId(albumId);
+  }, []);
+
+  const navigateBack = useCallback(() => {
+    if (historyIndex.current > 0) {
+      isNavigatingRef.current = true;
+      historyIndex.current--;
+      setSelectedAlbumId(historyStack.current[historyIndex.current]);
+      isNavigatingRef.current = false;
+    }
+  }, []);
+
+  const navigateForward = useCallback(() => {
+    if (historyIndex.current < historyStack.current.length - 1) {
+      isNavigatingRef.current = true;
+      historyIndex.current++;
+      setSelectedAlbumId(historyStack.current[historyIndex.current]);
+      isNavigatingRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     loadCredentials()
@@ -106,6 +143,25 @@ function App() {
     };
   }, []);
 
+  // Mouse back/forward button navigation (mouse4 = back, mouse5 = forward)
+  useEffect(() => {
+    function handleMouseButton(event: MouseEvent) {
+      // Button 3 = mouse4 (back), Button 4 = mouse5 (forward)
+      if (event.button === 3) {
+        event.preventDefault();
+        navigateBack();
+      } else if (event.button === 4) {
+        event.preventDefault();
+        navigateForward();
+      }
+    }
+
+    window.addEventListener("mouseup", handleMouseButton);
+    return () => {
+      window.removeEventListener("mouseup", handleMouseButton);
+    };
+  }, [navigateBack, navigateForward]);
+
   async function handleConnect(credentials: SubsonicCredentials) {
     setIsConnecting(true);
     setError(null);
@@ -137,43 +193,51 @@ function App() {
     setClient(null);
     setSavedCredentials(null);
     setSelectedAlbumId(null);
+    // Reset navigation history
+    historyStack.current = [null];
+    historyIndex.current = 0;
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 p-4 pb-24">
-      <div className="max-w-7xl mx-auto animate-fade-in">
-        {client ? (
-          <>
-            {selectedAlbumId ? (
-              <AlbumView
-                albumId={selectedAlbumId}
-                client={client}
-                onBack={() => setSelectedAlbumId(null)}
+    <main className="h-screen bg-zinc-950 text-zinc-100 flex flex-col overflow-hidden">
+      {client && (
+        <NowPlayingHeader client={client} onAlbumClick={navigateTo} />
+      )}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 max-w-7xl mx-auto w-full animate-fade-in p-4 pb-16 overflow-hidden flex flex-col">
+          {client ? (
+            <>
+              {selectedAlbumId ? (
+                <AlbumView
+                  albumId={selectedAlbumId}
+                  client={client}
+                  onBack={() => navigateTo(null)}
+                />
+              ) : (
+                <AlbumGrid
+                  client={client}
+                  onDisconnect={handleDisconnect}
+                  onAlbumClick={(albumId) => navigateTo(albumId)}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                />
+              )}
+              <PlayerBar />
+              <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
               />
-            ) : (
-              <AlbumGrid
-                client={client}
-                onDisconnect={handleDisconnect}
-                onAlbumClick={(albumId) => setSelectedAlbumId(albumId)}
-                onOpenSettings={() => setIsSettingsOpen(true)}
+            </>
+          ) : (
+            <div className="flex items-center justify-center flex-1">
+              <ConnectionForm
+                onConnect={handleConnect}
+                isConnecting={isConnecting}
+                error={error}
+                initialCredentials={savedCredentials}
               />
-            )}
-            <PlayerBar client={client} onAlbumClick={setSelectedAlbumId} />
-            <SettingsModal
-              isOpen={isSettingsOpen}
-              onClose={() => setIsSettingsOpen(false)}
-            />
-          </>
-        ) : (
-          <div className="flex items-center justify-center min-h-[80vh]">
-            <ConnectionForm
-              onConnect={handleConnect}
-              isConnecting={isConnecting}
-              error={error}
-              initialCredentials={savedCredentials}
-            />
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

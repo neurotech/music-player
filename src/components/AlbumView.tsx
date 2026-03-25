@@ -85,7 +85,7 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const totalMins = Math.floor(totalDuration / 60);
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full overflow-auto">
       <button
         type="button"
         onClick={onBack}

@@ -88,6 +88,8 @@ const SORT_OPTIONS: SortConfig[] = [
   { type: "alphabeticalByArtist", label: "Artist" },
 ];
 
+const PAGE_SIZE = 50;
+
 export const AlbumGrid = memo(function AlbumGrid({
   client,
   onAlbumClick,
@@ -102,13 +104,41 @@ export const AlbumGrid = memo(function AlbumGrid({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Album[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState<number | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchTotalPages = useCallback(async () => {
+    let low = 0;
+    let high = 100;
+
+    while (await client.getAlbumList(sortType, 1, high * PAGE_SIZE).then(r => r.length > 0)) {
+      low = high;
+      high *= 2;
+    }
+
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      const result = await client.getAlbumList(sortType, 1, mid * PAGE_SIZE);
+      if (result.length > 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+
+    setTotalPages(low);
+  }, [client, sortType]);
 
   const fetchAlbums = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const albumList = await client.getAlbumList(sortType, 100);
+      const offset = currentPage * PAGE_SIZE;
+      const albumList = await client.getAlbumList(sortType, PAGE_SIZE, offset);
+
+      setHasMore(albumList.length === PAGE_SIZE);
 
       const sortedAlbums =
         sortDirection === "asc" ? [...albumList].reverse() : albumList;
@@ -140,7 +170,7 @@ export const AlbumGrid = memo(function AlbumGrid({
     } finally {
       setLoading(false);
     }
-  }, [client, sortType, sortDirection]);
+  }, [client, sortType, sortDirection, currentPage]);
 
   const performSearch = useCallback(
     async (query: string) => {
@@ -241,6 +271,10 @@ export const AlbumGrid = memo(function AlbumGrid({
   }, [fetchAlbums]);
 
   useEffect(() => {
+    fetchTotalPages();
+  }, [fetchTotalPages]);
+
+  useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -250,14 +284,30 @@ export const AlbumGrid = memo(function AlbumGrid({
 
   function toggleDirection() {
     setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+    setCurrentPage(0);
+  }
+
+  function handleSortTypeChange(newSortType: AlbumListType) {
+    setSortType(newSortType);
+    setCurrentPage(0);
+    setTotalPages(null);
+  }
+
+  function goToPreviousPage() {
+    setCurrentPage((prev) => Math.max(0, prev - 1));
+  }
+
+  function goToNextPage() {
+    setCurrentPage((prev) => prev + 1);
   }
 
   const displayAlbums = searchResults !== null ? searchResults : albums;
   const showSearchLoading = isSearching && searchQuery.trim();
 
   return (
-    <div className="w-full">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+    <div className="w-full h-full flex flex-col">
+      {/* Sticky search/sort header */}
+      <div className="sticky top-0 z-10 bg-zinc-950 pb-4 flex flex-wrap justify-between items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <input
             type="text"
@@ -314,7 +364,7 @@ export const AlbumGrid = memo(function AlbumGrid({
           <select
             id="sort-select"
             value={sortType}
-            onChange={(e) => setSortType(e.target.value as AlbumListType)}
+            onChange={(e) => handleSortTypeChange(e.target.value as AlbumListType)}
             disabled={searchResults !== null}
             className="px-2 py-1 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -397,32 +447,60 @@ export const AlbumGrid = memo(function AlbumGrid({
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-sm text-zinc-500">Loading albums...</div>
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center h-64 gap-3">
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
-      ) : showSearchLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-sm text-zinc-500">Searching...</div>
-        </div>
-      ) : displayAlbums.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center">
-          {searchQuery ? "No results found" : "No albums found"}
-        </p>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {displayAlbums.map((album) => (
-            <AlbumCard
-              key={album.id}
-              album={album}
-              coverUrl={coverUrls[album.id]}
-              onAlbumClick={onAlbumClick}
-            />
-          ))}
+      {/* Scrollable album grid */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-sm text-zinc-500">Loading albums...</div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-3">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        ) : showSearchLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-sm text-zinc-500">Searching...</div>
+          </div>
+        ) : displayAlbums.length === 0 ? (
+          <p className="text-sm text-zinc-500 text-center">
+            {searchQuery ? "No results found" : "No albums found"}
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {displayAlbums.map((album) => (
+              <AlbumCard
+                key={album.id}
+                album={album}
+                coverUrl={coverUrls[album.id]}
+                onAlbumClick={onAlbumClick}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sticky pagination footer */}
+      {searchResults === null && (
+        <div className="sticky bottom-0 z-10  pt-4 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={goToPreviousPage}
+            disabled={currentPage === 0}
+            className="px-3 py-1.5 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-zinc-500">
+            Page {currentPage + 1}{totalPages !== null ? ` of ${totalPages}` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={goToNextPage}
+            disabled={!hasMore}
+            className="px-3 py-1.5 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
