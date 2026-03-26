@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type DiscordConfig,
@@ -90,20 +91,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               className="text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
               aria-label="Close settings"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="w-4 h-4" />
             </button>
           </div>
 

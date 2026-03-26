@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp, Music, Search, Settings, X } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Album, AlbumListType, SubsonicClient } from "../lib/subsonic";
 
@@ -42,15 +43,7 @@ const AlbumCard = memo(function AlbumCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-zinc-700">
-            <svg
-              className="w-8 h-8"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              role="img"
-              aria-label="No album cover"
-            >
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-            </svg>
+            <Music className="w-8 h-8" aria-label="No album cover" />
           </div>
         )}
       </div>
@@ -316,21 +309,7 @@ export const AlbumGrid = memo(function AlbumGrid({
             onChange={handleSearchChange}
             className="w-full pl-8 pr-8 py-1 text-sm rounded-sm bg-zinc-900 border border-zinc-800 text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
           />
-          <svg
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            role="img"
-            aria-label="Search"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" aria-label="Search" />
           {searchQuery && (
             <button
               type="button"
@@ -338,21 +317,7 @@ export const AlbumGrid = memo(function AlbumGrid({
               className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
               title="Clear search"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                role="img"
-                aria-label="Clear"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="w-4 h-4" aria-label="Clear" />
             </button>
           )}
         </div>
@@ -382,37 +347,9 @@ export const AlbumGrid = memo(function AlbumGrid({
             title={sortDirection === "desc" ? "Descending" : "Ascending"}
           >
             {sortDirection === "desc" ? (
-              <svg
-                className="w-3.5 h-3.5 text-zinc-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                role="img"
-                aria-label="Sort descending"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" aria-label="Sort descending" />
             ) : (
-              <svg
-                className="w-3.5 h-3.5 text-zinc-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                role="img"
-                aria-label="Sort ascending"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 15l7-7 7 7"
-                />
-              </svg>
+              <ChevronUp className="w-3.5 h-3.5 text-zinc-400" aria-label="Sort ascending" />
             )}
           </button>
 
@@ -422,27 +359,7 @@ export const AlbumGrid = memo(function AlbumGrid({
             className="p-1 rounded-sm bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
             title="Settings"
           >
-            <svg
-              className="w-3.5 h-3.5 text-zinc-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              role="img"
-              aria-label="Settings"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            <Settings className="w-3.5 h-3.5 text-zinc-400" aria-label="Settings" />
           </button>
         </div>
       </div>

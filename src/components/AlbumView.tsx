@@ -1,3 +1,4 @@
+import { ChevronLeft, Music, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type PlayerState, player } from "../lib/player";
 import type { AlbumWithSongs, Song, SubsonicClient } from "../lib/subsonic";
@@ -14,12 +15,14 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-function AnimatedText({ text }: { text: string }) {
+function AnimatedText({ text, paused }: { text: string; paused: boolean }) {
   const chars = text.split("").map((char, i) => ({
     char,
     id: `char-${i}`,
     delay: i * 100,
   }));
+
+  const animationStyle = paused ? { animationPlayState: "paused" as const } : {};
 
   return (
     <span className="inline-flex">
@@ -27,11 +30,11 @@ function AnimatedText({ text }: { text: string }) {
         <span
           key={id}
           className="inline-block animate-wobble"
-          style={{ animationDelay: `${delay}ms` }}
+          style={{ animationDelay: `${delay}ms`, ...animationStyle }}
         >
           <span
             className="animate-rainbow"
-            style={{ animationDelay: `${delay}ms` }}
+            style={{ animationDelay: `${delay}ms`, ...animationStyle }}
           >
             {char === " " ? "\u00A0" : char}
           </span>
@@ -117,85 +120,59 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const totalMins = Math.floor(totalDuration / 60);
 
   return (
-    <div className="w-full h-full overflow-auto">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 mb-4 transition-colors cursor-pointer"
-      >
-        <svg
-          className="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="shrink-0 pb-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 mb-4 transition-colors cursor-pointer"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-        Back to Albums
-      </button>
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Back to Albums
+        </button>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <div className="flex-shrink-0">
-          {coverUrl ? (
-            <img
-              src={coverUrl}
-              alt={album.name}
-              className="w-40 h-40 rounded-sm border border-zinc-800 shadow-lg"
-            />
-          ) : (
-            <div className="w-40 h-40 rounded-sm bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              <svg
-                className="w-16 h-16 text-zinc-700"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                role="img"
-                aria-label="No album cover"
-              >
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-              </svg>
-            </div>
-          )}
-        </div>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="shrink-0">
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt={album.name}
+                className="w-40 h-40 rounded-sm border border-zinc-800 shadow-lg"
+              />
+            ) : (
+              <div className="w-40 h-40 rounded-sm bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                <Music className="w-16 h-16 text-zinc-700" aria-label="No album cover" />
+              </div>
+            )}
+          </div>
 
-        <div className="flex flex-col justify-end">
-          <p className="text-sm text-zinc-600 uppercase tracking-wider mb-1">
-            Album
-          </p>
-          <h1 className="text-lg font-semibold text-zinc-100 mb-1">
-            {album.name}
-          </h1>
-          <p className="text-sm text-zinc-400 mb-2">{album.artist}</p>
-          <p className="text-sm text-zinc-500">
-            {album.year && `${album.year} · `}
-            {album.songCount} songs · {totalMins} min
-          </p>
+          <div className="flex flex-col justify-between">
+            <p className="text-sm text-zinc-600 uppercase tracking-wider">
+              Album
+            </p>
+            <h1 className="text-lg font-semibold text-zinc-100">
+              {album.name}
+            </h1>
+            <p className="text-sm text-zinc-400">{album.artist}</p>
+            <p className="text-sm text-zinc-500">
+              {album.year && `${album.year} · `}
+              {album.songCount} songs · {totalMins} min
+            </p>
 
-          <button
-            type="button"
-            onClick={handlePlayAll}
-            className="mt-3 px-3 py-1.5 text-sm font-semibold rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 hover:from-indigo-400/90 hover:to-indigo-800/80 transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none inline-flex items-center gap-1.5 w-fit"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+            <button
+              type="button"
+              onClick={handlePlayAll}
+              className="mt-3 px-3 py-1.5 text-sm font-semibold rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 hover:from-indigo-400/90 hover:to-indigo-800/80 transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none inline-flex items-center gap-1.5 w-fit"
             >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            Play
-          </button>
+              <Play className="w-3.5 h-3.5" fill="currentColor" />
+              Play
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 text-sm text-zinc-500 border-b border-zinc-800 bg-zinc-800/50">
+      <div className="min-h-0 max-h-full overflow-auto bg-zinc-900 border border-zinc-800 rounded-sm">
+        <div className="sticky top-0 z-10 grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 text-sm text-zinc-500 border-b border-zinc-800 bg-zinc-800">
           <span className="w-6 text-center">#</span>
           <span>Title</span>
           <span className="text-right">Duration</span>
@@ -208,39 +185,21 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
               type="button"
               key={song.id}
               onClick={() => handlePlayTrack(song, index)}
-              className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 hover:bg-zinc-800/40 transition-colors group text-left cursor-pointer ${isPlaying ? "bg-zinc-950/70" : ""}`}
+              className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 hover:bg-zinc-800/40 transition-colors group items-center text-left cursor-pointer ${isPlaying ? "bg-zinc-800/50" : ""}`}
             >
               {isPlaying ? (
-                <span className="w-6 text-center text-indigo-400">
-                  <svg
-                    className="w-3 h-5 mx-auto"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
+                <Play className="w-6 text-center animate-rainbow animation-direction-reverse" size={12} fill="currentColor" />
               ) : (
                 <>
                   <span className="w-6 text-center text-sm text-zinc-500 group-hover:hidden">
                     {song.track || index + 1}
                   </span>
-                  <span className="w-6 text-center text-indigo-400 hidden group-hover:block">
-                    <svg
-                      className="w-3 h-5 mx-auto"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </span>
+                  <Play className="w-6 text-center text-indigo-400 hidden group-hover:block" size={12} fill="currentColor" />
                 </>
               )}
               <div className="min-w-0">
                 <p className={`text-sm transition-colors ${isPlaying ? "" : "truncate text-zinc-200 group-hover:text-indigo-400"}`}>
-                  {isPlaying ? <AnimatedText text={song.title} /> : song.title}
+                  {isPlaying ? <AnimatedText text={song.title} paused={!playerState.isPlaying} /> : song.title}
                 </p>
                 {song.artist !== album.artist && (
                   <p className="text-sm text-zinc-500 truncate">{song.artist}</p>

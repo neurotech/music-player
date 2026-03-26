@@ -1,3 +1,4 @@
+import { Music } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type PlayerState, player } from "../lib/player";
 import type { SubsonicClient } from "../lib/subsonic";
@@ -48,19 +49,13 @@ export function NowPlayingHeader({ client, onAlbumClick }: NowPlayingHeaderProps
         />
       ) : (
         <div className="w-10 h-10 rounded-sm bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-          <svg
-            className="w-5 h-5 text-zinc-600"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-            role="img"
-            aria-label="No cover"
-          >
-            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-          </svg>
+          <Music className="w-5 h-5 text-zinc-600" aria-label="No cover" />
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-xs text-zinc-500 uppercase tracking-wide">🎵 Now Playing</p>
+        <p className="text-xs text-zinc-500 uppercase tracking-wide flex items-center gap-1">
+          <Music className="w-3 h-3" /> Now Playing
+        </p>
         <p className="font-medium text-sm text-zinc-200 truncate">
           {state.currentTrack.title}
         </p>
