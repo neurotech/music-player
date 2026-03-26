@@ -23,6 +23,7 @@ function AnimatedText({ text, paused }: { text: string; paused: boolean }) {
   }));
 
   const animationStyle = paused ? { animationPlayState: "paused" as const } : {};
+  const opacityStyle = paused ? { filter: "grayscale(60%)" } : {};
 
   return (
     <span className="inline-flex">
@@ -34,7 +35,7 @@ function AnimatedText({ text, paused }: { text: string; paused: boolean }) {
         >
           <span
             className="animate-rainbow"
-            style={{ animationDelay: `${delay}ms`, ...animationStyle }}
+            style={{ animationDelay: `${delay}ms`, ...animationStyle, ...opacityStyle }}
           >
             {char === " " ? "\u00A0" : char}
           </span>
@@ -188,7 +189,11 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
               className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 hover:bg-zinc-800/40 transition-colors group items-center text-left cursor-pointer ${isPlaying ? "bg-zinc-800/50" : ""}`}
             >
               {isPlaying ? (
-                <Play className="w-6 text-center animate-rainbow animation-direction-reverse" size={12} fill="currentColor" />
+                <Play
+                  className="w-6 text-center animate-[rainbow_7s_linear_infinite_reverse]"
+                  size={12}
+                  fill="currentColor"
+                />
               ) : (
                 <>
                   <span className="w-6 text-center text-sm text-zinc-500 group-hover:hidden">
