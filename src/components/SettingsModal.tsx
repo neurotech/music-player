@@ -69,44 +69,44 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in"
+      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
       onClick={handleBackdropClick}
       onKeyDown={(e) => e.key === "Escape" && onClose()}
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-title"
     >
-      <div className="w-full max-w-sm mx-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden shadow-[0_1px_rgba(255,255,255,0.05)_inset]">
-          <div className="bg-zinc-800/80 px-3 py-2 border-b border-zinc-900 flex items-center justify-between">
+      <div className="mx-4 w-full max-w-sm">
+        <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-[0_1px_rgba(255,255,255,0.05)_inset]">
+          <div className="flex items-center justify-between border-zinc-900 border-b bg-zinc-800/80 px-3 py-2">
             <h2
               id="settings-title"
-              className="text-sm font-semibold text-zinc-100"
+              className="font-semibold text-sm text-zinc-100"
             >
               Settings
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+              className="cursor-pointer text-zinc-400 transition-colors hover:text-zinc-200"
               aria-label="Close settings"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="p-3 space-y-4">
+          <div className="space-y-4 p-3">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-300 mb-2">
+              <h3 className="mb-2 font-semibold text-sm text-zinc-300">
                 Discord Rich Presence
               </h3>
 
-              <label className="flex items-center gap-2 cursor-pointer mb-3">
+              <label className="mb-3 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={discordEnabled}
                   onChange={(e) => setDiscordEnabled(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded-sm bg-zinc-950 border border-zinc-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                  className="h-3.5 w-3.5 cursor-pointer rounded-sm border border-zinc-700 bg-zinc-950 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
                 />
                 <span className="text-sm text-zinc-400">
                   Enable Discord Rich Presence
@@ -116,7 +116,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div>
                 <label
                   htmlFor="applicationId"
-                  className="block text-sm font-medium text-zinc-400 mb-1"
+                  className="mb-1 block font-medium text-sm text-zinc-400"
                 >
                   Application ID
                 </label>
@@ -127,7 +127,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onChange={(e) => setApplicationId(e.target.value)}
                   placeholder="Enter your Discord Application ID"
                   disabled={!discordEnabled}
-                  className="w-full px-2 py-1.5 text-sm rounded-sm bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <p className="mt-1 text-sm text-zinc-600">
                   Create an app at{" "}
@@ -135,7 +135,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     href="https://discord.com/developers/applications"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-400 hover:text-indigo-300 underline"
+                    className="text-indigo-400 underline hover:text-indigo-300"
                   >
                     Discord Developer Portal
                   </a>
@@ -144,13 +144,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
 
             {status === "error" && errorMessage && (
-              <p className="text-sm text-red-400 bg-red-950/50 border border-red-900/50 px-2 py-1.5 rounded-sm">
+              <p className="rounded-sm border border-red-900/50 bg-red-950/50 px-2 py-1.5 text-red-400 text-sm">
                 {errorMessage}
               </p>
             )}
 
             {status === "success" && (
-              <p className="text-sm text-green-400 bg-green-950/50 border border-green-900/50 px-2 py-1.5 rounded-sm">
+              <p className="rounded-sm border border-green-900/50 bg-green-950/50 px-2 py-1.5 text-green-400 text-sm">
                 Settings saved
               </p>
             )}
@@ -159,7 +159,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-2 py-1.5 text-sm font-semibold rounded-sm border border-zinc-800 bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer select-none"
+                className="flex-1 cursor-pointer select-none rounded-sm border border-zinc-800 bg-zinc-800 px-2 py-1.5 font-semibold text-sm transition-colors hover:bg-zinc-700"
               >
                 Cancel
               </button>
@@ -167,7 +167,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || (discordEnabled && !applicationId.trim())}
-                className="flex-1 px-2 py-1.5 text-sm font-semibold rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:bg-zinc-900/70 disabled:from-zinc-800/50 disabled:to-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none"
+                className="flex-1 cursor-pointer select-none rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 px-2 py-1.5 font-semibold text-sm shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:cursor-not-allowed disabled:bg-zinc-900/70 disabled:from-zinc-800/50 disabled:to-zinc-800 disabled:text-zinc-500"
               >
                 {isSaving ? "Saving..." : "Save"}
               </button>

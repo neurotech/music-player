@@ -5,10 +5,12 @@ const UI_STATE_KEY = "ui-state";
 
 interface PersistedUIState {
   selectedAlbumId: string | null;
+  isQueueOpen: boolean;
 }
 
 let currentState: PersistedUIState = {
   selectedAlbumId: null,
+  isQueueOpen: false,
 };
 
 export async function loadUIState(): Promise<PersistedUIState> {
@@ -30,6 +32,15 @@ export function setSelectedAlbumId(albumId: string | null): void {
 
 export function getSelectedAlbumId(): string | null {
   return currentState.selectedAlbumId;
+}
+
+export function setIsQueueOpen(isOpen: boolean): void {
+  currentState.isQueueOpen = isOpen;
+  saveUIState();
+}
+
+export function getIsQueueOpen(): boolean {
+  return currentState.isQueueOpen;
 }
 
 getCurrentWindow().onCloseRequested(async () => {

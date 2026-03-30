@@ -8,7 +8,10 @@ interface NowPlayingHeaderProps {
   onAlbumClick?: (albumId: string) => void;
 }
 
-export function NowPlayingHeader({ client, onAlbumClick }: NowPlayingHeaderProps) {
+export function NowPlayingHeader({
+  client,
+  onAlbumClick,
+}: NowPlayingHeaderProps) {
   const [state, setState] = useState<PlayerState>(player.getState());
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
@@ -38,28 +41,28 @@ export function NowPlayingHeader({ client, onAlbumClick }: NowPlayingHeaderProps
   return (
     <button
       type="button"
-      onClick={() => onAlbumClick?.(state.currentTrack!.albumId)}
-      className="sticky top-0 z-20 w-full bg-zinc-900 border-b border-zinc-800 px-4 py-2 flex items-center gap-3 min-w-0 hover:bg-zinc-800 transition-colors cursor-pointer group text-left shrink-0"
+      onClick={() => onAlbumClick?.(state.currentTrack?.albumId)}
+      className="group sticky top-0 z-20 flex w-full min-w-0 shrink-0 cursor-pointer items-center gap-3 border-zinc-800 border-b bg-zinc-900 px-4 py-2 text-left transition-colors hover:bg-zinc-800"
     >
       {coverUrl ? (
         <img
           src={coverUrl}
           alt={state.currentTrack.album}
-          className="w-13 h-13 rounded-sm border border-zinc-800"
+          className="h-13 w-13 rounded-sm border border-zinc-800"
         />
       ) : (
-        <div className="w-10 h-10 rounded-sm bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-          <Music className="w-5 h-5 text-zinc-600" aria-label="No cover" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-800">
+          <Music className="h-5 w-5 text-zinc-600" aria-label="No cover" />
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-xs text-zinc-500 uppercase tracking-wide flex items-center gap-1">
-          <Music className="w-3 h-3" /> Now Playing
+        <p className="flex items-center gap-1 text-xs text-zinc-500 uppercase tracking-wide">
+          <Music className="h-3 w-3" /> Now Playing
         </p>
-        <p className="font-medium text-sm text-zinc-200 truncate">
+        <p className="truncate font-medium text-sm text-zinc-200">
           {state.currentTrack.title}
         </p>
-        <p className="text-zinc-500 text-sm truncate group-hover:text-zinc-400 transition-colors">
+        <p className="truncate text-sm text-zinc-500 transition-colors group-hover:text-zinc-400">
           {state.currentTrack.artist} — {state.currentTrack.album}
         </p>
       </div>

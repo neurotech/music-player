@@ -27,18 +27,18 @@ export function ConnectionForm({
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden shadow-[0_1px_rgba(255,255,255,0.05)_inset]">
-        <div className="bg-zinc-800/80 px-3 py-2 border-b border-zinc-900">
-          <h2 className="text-sm font-semibold text-zinc-100">
+      <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-[0_1px_rgba(255,255,255,0.05)_inset]">
+        <div className="border-zinc-900 border-b bg-zinc-800/80 px-3 py-2">
+          <h2 className="font-semibold text-sm text-zinc-100">
             Connect to Navidrome
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-3 space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3 p-3">
           <div>
             <label
               htmlFor="serverUrl"
-              className="block text-sm font-medium text-zinc-400 mb-1"
+              className="mb-1 block font-medium text-sm text-zinc-400"
             >
               Server URL
             </label>
@@ -49,14 +49,14 @@ export function ConnectionForm({
               onChange={(e) => setServerUrl(e.target.value)}
               placeholder="https://your-navidrome-server.com"
               required
-              className="w-full px-2 py-1.5 text-sm rounded-sm bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
           <div>
             <label
               htmlFor="username"
-              className="block text-sm font-medium text-zinc-400 mb-1"
+              className="mb-1 block font-medium text-sm text-zinc-400"
             >
               Username
             </label>
@@ -67,14 +67,14 @@ export function ConnectionForm({
               onChange={(e) => setUsername(e.target.value)}
               placeholder="username"
               required
-              className="w-full px-2 py-1.5 text-sm rounded-sm bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-zinc-400 mb-1"
+              className="mb-1 block font-medium text-sm text-zinc-400"
             >
               Password
             </label>
@@ -85,12 +85,12 @@ export function ConnectionForm({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="password"
               required
-              className="w-full px-2 py-1.5 text-sm rounded-sm bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full rounded-sm border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-950/50 border border-red-900/50 px-2 py-1.5 rounded-sm">
+            <p className="rounded-sm border border-red-900/50 bg-red-950/50 px-2 py-1.5 text-red-400 text-sm">
               {error}
             </p>
           )}
@@ -98,7 +98,7 @@ export function ConnectionForm({
           <button
             type="submit"
             disabled={isConnecting}
-            className="w-full px-2 py-1.5 text-sm font-semibold rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:bg-zinc-900/70 disabled:from-zinc-800/50 disabled:to-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none"
+            className="w-full cursor-pointer select-none rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 px-2 py-1.5 font-semibold text-sm shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:cursor-not-allowed disabled:bg-zinc-900/70 disabled:from-zinc-800/50 disabled:to-zinc-800 disabled:text-zinc-500"
           >
             {isConnecting ? "Connecting..." : "Connect"}
           </button>

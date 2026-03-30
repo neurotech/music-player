@@ -22,6 +22,7 @@ interface PersistedPlayerState {
 }
 
 type PlayerListener = (state: PlayerState) => void;
+type TrackChangeListener = (track: Song) => void;
 
 const VOLUME_STORAGE_KEY = "player-volume";
 const PLAYBACK_STATE_KEY = "player-playback-state";
@@ -39,6 +40,7 @@ class AudioPlayer {
     volume: 1,
   };
   private listeners: Set<PlayerListener> = new Set();
+  private trackChangeListeners: Set<TrackChangeListener> = new Set();
   private discordConnected = false;
   private discordEnabled = false;
   private lastTimeUpdate = 0;
@@ -177,6 +179,17 @@ class AudioPlayer {
     return () => this.listeners.delete(listener);
   }
 
+  onTrackChange(listener: TrackChangeListener): () => void {
+    this.trackChangeListeners.add(listener);
+    return () => this.trackChangeListeners.delete(listener);
+  }
+
+  private notifyTrackChange(track: Song) {
+    for (const listener of this.trackChangeListeners) {
+      listener(track);
+    }
+  }
+
   private notify() {
     for (const listener of this.listeners) {
       listener({ ...this.state });
@@ -232,7 +245,9 @@ class AudioPlayer {
   async next() {
     if (this.state.queueIndex < this.state.queue.length - 1) {
       this.state.queueIndex++;
-      await this.loadAndPlay(this.state.queue[this.state.queueIndex]);
+      const track = this.state.queue[this.state.queueIndex];
+      await this.loadAndPlay(track);
+      this.notifyTrackChange(track);
     } else {
       this.stop();
     }
@@ -243,7 +258,9 @@ class AudioPlayer {
       this.audio.currentTime = 0;
     } else if (this.state.queueIndex > 0) {
       this.state.queueIndex--;
-      await this.loadAndPlay(this.state.queue[this.state.queueIndex]);
+      const track = this.state.queue[this.state.queueIndex];
+      await this.loadAndPlay(track);
+      this.notifyTrackChange(track);
     } else {
       this.audio.currentTime = 0;
     }
@@ -304,7 +321,9 @@ class AudioPlayer {
       this.state.currentTrack = persisted.currentTrack;
       this.notify();
 
-      const streamUrl = await this.client.getStreamUrl(persisted.currentTrack.id);
+      const streamUrl = await this.client.getStreamUrl(
+        persisted.currentTrack.id,
+      );
       this.audio.src = streamUrl;
 
       const seekTime = persisted.currentTime;
@@ -340,6 +359,21 @@ class AudioPlayer {
     this.notify();
     this.clearDiscordActivity();
     this.savePlaybackState();
+  }
+
+  async playRandomSong(): Promise<Song | null> {
+    if (!this.client) return null;
+
+    try {
+      const songs = await this.client.getRandomSongs(50);
+      if (songs.length > 0) {
+        await this.playQueue(songs, 0);
+        return songs[0];
+      }
+    } catch (err) {
+      console.error("Failed to play random song:", err);
+    }
+    return null;
   }
 }
 

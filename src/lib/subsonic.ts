@@ -88,6 +88,12 @@ interface SearchResponse {
   searchResult3: SearchResult;
 }
 
+interface RandomSongsResponse {
+  randomSongs: {
+    song: Song[];
+  };
+}
+
 function generateSalt(length = 8): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let salt = "";
@@ -436,6 +442,13 @@ export class SubsonicClient {
       songCount: "100",
     });
     return response.searchResult3 || {};
+  }
+
+  async getRandomSongs(size = 1): Promise<Song[]> {
+    const response = await this.request<RandomSongsResponse>("getRandomSongs", {
+      size: size.toString(),
+    });
+    return response.randomSongs?.song || [];
   }
 }
 
