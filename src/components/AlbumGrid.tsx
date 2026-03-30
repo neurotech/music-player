@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Music, Search, Settings, X } from "lucide-react";
+import { ArrowBigDown, ArrowDownAZ, ChevronDown, ChevronUp, Music, Search, Settings, TrendingDown, TrendingUp, X } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Album, AlbumListType, SubsonicClient } from "../lib/subsonic";
 
@@ -343,20 +343,26 @@ export const AlbumGrid = memo(function AlbumGrid({
           <button
             type="button"
             onClick={toggleDirection}
-            className="p-1 rounded-sm bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
+            className="justify-between min-w-30 px-2 py-1 rounded-sm bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer flex items-center gap-1.5 text-sm text-zinc-400"
             title={sortDirection === "desc" ? "Descending" : "Ascending"}
           >
             {sortDirection === "desc" ? (
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" aria-label="Sort descending" />
+              <>
+              Descending
+                <TrendingDown className="w-3.5 h-3.5" aria-label="Sort descending" />
+              </>
             ) : (
-              <ChevronUp className="w-3.5 h-3.5 text-zinc-400" aria-label="Sort ascending" />
+              <>
+                Ascending
+                <TrendingUp className="w-3.5 h-3.5" aria-label="Sort ascending" />
+              </>
             )}
           </button>
 
           <button
             type="button"
             onClick={onOpenSettings}
-            className="p-1 rounded-sm bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
+            className="px-2 py-1.75 rounded-sm bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer"
             title="Settings"
           >
             <Settings className="w-3.5 h-3.5 text-zinc-400" aria-label="Settings" />

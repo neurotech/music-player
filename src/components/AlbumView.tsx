@@ -133,41 +133,41 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
         </button>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="shrink-0">
+          <button
+            type="button"
+            onClick={handlePlayAll}
+            className="shrink-0 relative group cursor-pointer"
+          >
             {coverUrl ? (
               <img
                 src={coverUrl}
                 alt={album.name}
-                className="w-40 h-40 rounded-sm border border-zinc-800 shadow-lg"
+                className="w-40 h-40 rounded-sm border border-zinc-800 shadow-lg group-hover:brightness-75 transition-all"
               />
             ) : (
-              <div className="w-40 h-40 rounded-sm bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              <div className="w-40 h-40 rounded-sm bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:brightness-75 transition-all">
                 <Music className="w-16 h-16 text-zinc-700" aria-label="No album cover" />
               </div>
             )}
-          </div>
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg">
+                <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
+              </div>
+            </div>
+          </button>
 
-          <div className="flex flex-col justify-between">
-            <p className="text-sm text-zinc-600 uppercase tracking-wider">
-              Album
-            </p>
-            <h1 className="text-lg font-semibold text-zinc-100">
+          <div className="flex flex-col gap-1 justify-between">
+            <div>
+            <h1 className="text-4xl font-semibold text-zinc-100">
               {album.name}
             </h1>
-            <p className="text-sm text-zinc-400">{album.artist}</p>
+            <p className="text-xl text-zinc-400">{album.artist}</p>
+            </div>
+            
             <p className="text-sm text-zinc-500">
               {album.year && `${album.year} · `}
               {album.songCount} songs · {totalMins} min
             </p>
-
-            <button
-              type="button"
-              onClick={handlePlayAll}
-              className="mt-3 px-3 py-1.5 text-sm font-semibold rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 hover:from-indigo-400/90 hover:to-indigo-800/80 transition-colors shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] cursor-pointer select-none inline-flex items-center gap-1.5 w-fit"
-            >
-              <Play className="w-3.5 h-3.5" fill="currentColor" />
-              Play
-            </button>
           </div>
         </div>
       </div>
