@@ -61,6 +61,7 @@
 
 html {
   font-family: var(--font-display);
+  background-color: #000000;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
