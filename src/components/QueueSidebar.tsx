@@ -10,7 +10,12 @@ interface QueueSidebarProps {
   onAlbumClick: (albumId: string) => void;
 }
 
-export function QueueSidebar({ isOpen, onClose, client, onAlbumClick }: QueueSidebarProps) {
+export function QueueSidebar({
+  isOpen,
+  onClose,
+  client,
+  onAlbumClick,
+}: QueueSidebarProps) {
   const [state, setState] = useState<PlayerState>(player.getState());
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
 

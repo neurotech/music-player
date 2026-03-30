@@ -19,8 +19,8 @@ import {
 } from "./lib/subsonic";
 import {
   loadUIState,
-  setSelectedAlbumId as persistSelectedAlbumId,
   setIsQueueOpen as persistIsQueueOpen,
+  setSelectedAlbumId as persistSelectedAlbumId,
 } from "./lib/ui-state";
 
 function App() {
