@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { loadDiscordConfig } from "./discord-config";
-import { getStoreValue, setStoreValue } from "./store";
+import { getStoreValue, removeStoreValue, setStoreValue } from "./store";
 import type { Song, SubsonicClient } from "./subsonic";
 
 export interface PlayerState {
@@ -13,9 +14,17 @@ export interface PlayerState {
   volume: number;
 }
 
+interface PersistedPlayerState {
+  currentTrack: Song | null;
+  queue: Song[];
+  queueIndex: number;
+  currentTime: number;
+}
+
 type PlayerListener = (state: PlayerState) => void;
 
 const VOLUME_STORAGE_KEY = "player-volume";
+const PLAYBACK_STATE_KEY = "player-playback-state";
 
 class AudioPlayer {
   private audio: HTMLAudioElement;
@@ -34,6 +43,7 @@ class AudioPlayer {
   private discordEnabled = false;
   private lastTimeUpdate = 0;
   private timeUpdateRafId: number | null = null;
+  private lastStateSave = 0;
 
   constructor() {
     this.audio = new Audio();
@@ -52,6 +62,11 @@ class AudioPlayer {
           this.timeUpdateRafId = null;
         });
       }
+
+      if (now - this.lastStateSave >= 5000) {
+        this.lastStateSave = now;
+        this.savePlaybackState();
+      }
     });
 
     this.audio.addEventListener("durationchange", () => {
@@ -67,12 +82,18 @@ class AudioPlayer {
       this.state.isPlaying = true;
       this.notify();
       this.updateDiscordActivity();
+      this.savePlaybackState();
     });
 
     this.audio.addEventListener("pause", () => {
       this.state.isPlaying = false;
       this.notify();
       this.clearDiscordActivity();
+      this.savePlaybackState();
+    });
+
+    getCurrentWindow().onCloseRequested(async () => {
+      await this.savePlaybackState();
     });
 
     this.initDiscordFromConfig();
@@ -252,6 +273,61 @@ class AudioPlayer {
     await setStoreValue(VOLUME_STORAGE_KEY, this.state.volume);
   }
 
+  async savePlaybackState(): Promise<void> {
+    if (!this.state.currentTrack) {
+      await removeStoreValue(PLAYBACK_STATE_KEY);
+      return;
+    }
+
+    const persistedState: PersistedPlayerState = {
+      currentTrack: this.state.currentTrack,
+      queue: this.state.queue,
+      queueIndex: this.state.queueIndex,
+      currentTime: this.audio.currentTime || 0,
+    };
+    await setStoreValue(PLAYBACK_STATE_KEY, persistedState);
+  }
+
+  private async loadPlaybackState(): Promise<PersistedPlayerState | null> {
+    return await getStoreValue<PersistedPlayerState>(PLAYBACK_STATE_KEY);
+  }
+
+  async restorePlayback(): Promise<void> {
+    if (!this.client) return;
+
+    const persisted = await this.loadPlaybackState();
+    if (!persisted || !persisted.currentTrack) return;
+
+    try {
+      this.state.queue = persisted.queue;
+      this.state.queueIndex = persisted.queueIndex;
+      this.state.currentTrack = persisted.currentTrack;
+      this.notify();
+
+      const streamUrl = await this.client.getStreamUrl(persisted.currentTrack.id);
+      this.audio.src = streamUrl;
+
+      const seekTime = persisted.currentTime;
+      const handleCanPlay = () => {
+        this.audio.currentTime = seekTime;
+        this.state.currentTime = seekTime;
+        this.audio.pause();
+        this.state.isPlaying = false;
+        this.notify();
+        this.audio.removeEventListener("canplay", handleCanPlay);
+      };
+      this.audio.addEventListener("canplay", handleCanPlay);
+
+      await this.audio.load();
+    } catch (err) {
+      console.warn("Failed to restore playback state:", err);
+      this.state.currentTrack = null;
+      this.state.queue = [];
+      this.state.queueIndex = -1;
+      this.notify();
+    }
+  }
+
   stop() {
     this.audio.pause();
     this.audio.src = "";
@@ -259,8 +335,11 @@ class AudioPlayer {
     this.state.isPlaying = false;
     this.state.currentTime = 0;
     this.state.duration = 0;
+    this.state.queue = [];
+    this.state.queueIndex = -1;
     this.notify();
     this.clearDiscordActivity();
+    this.savePlaybackState();
   }
 }
 
