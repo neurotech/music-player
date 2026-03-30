@@ -14,6 +14,7 @@ import {
   type SubsonicCredentials,
   saveCredentials,
 } from "./lib/subsonic";
+import { loadUIState, setSelectedAlbumId as persistSelectedAlbumId } from "./lib/ui-state";
 
 function App() {
   const [client, setClient] = useState<SubsonicClient | null>(null);
@@ -32,6 +33,7 @@ function App() {
   const navigateTo = useCallback((albumId: string | null) => {
     if (isNavigatingRef.current) {
       setSelectedAlbumId(albumId);
+      persistSelectedAlbumId(albumId);
       return;
     }
 
@@ -40,6 +42,7 @@ function App() {
     historyStack.current.push(albumId);
     historyIndex.current = historyStack.current.length - 1;
     setSelectedAlbumId(albumId);
+    persistSelectedAlbumId(albumId);
   }, []);
 
   const navigateBack = useCallback(() => {
@@ -62,20 +65,28 @@ function App() {
 
   useEffect(() => {
     loadCredentials()
-      .then((creds) => {
+      .then(async (creds) => {
         if (creds) {
           setSavedCredentials(creds);
           setIsConnecting(true);
           const newClient = new SubsonicClient(creds);
-          newClient
-            .ping()
-            .then((success) => {
-              if (success) {
-                setClient(newClient);
-                player.setClient(newClient);
+          try {
+            const success = await newClient.ping();
+            if (success) {
+              setClient(newClient);
+              player.setClient(newClient);
+              await player.restorePlayback();
+
+              const uiState = await loadUIState();
+              if (uiState.selectedAlbumId) {
+                setSelectedAlbumId(uiState.selectedAlbumId);
+                historyStack.current = [null, uiState.selectedAlbumId];
+                historyIndex.current = 1;
               }
-            })
-            .finally(() => setIsConnecting(false));
+            }
+          } finally {
+            setIsConnecting(false);
+          }
         }
       })
       .catch((err) => {
@@ -162,6 +173,29 @@ function App() {
     };
   }, [navigateBack, navigateForward]);
 
+  // Spacebar to toggle play/pause (only when app has focus, not in input fields)
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.code !== "Space") return;
+
+      const target = event.target as HTMLElement;
+      const isInputField =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      if (isInputField) return;
+
+      event.preventDefault();
+      player.togglePlayPause();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   async function handleConnect(credentials: SubsonicCredentials) {
     setIsConnecting(true);
     setError(null);
@@ -175,6 +209,7 @@ function App() {
         setSavedCredentials(credentials);
         setClient(newClient);
         player.setClient(newClient);
+        await player.restorePlayback();
       } else {
         setError("Failed to connect. Check your credentials.");
       }
@@ -193,6 +228,7 @@ function App() {
     setClient(null);
     setSavedCredentials(null);
     setSelectedAlbumId(null);
+    persistSelectedAlbumId(null);
     // Reset navigation history
     historyStack.current = [null];
     historyIndex.current = 0;
