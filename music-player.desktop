@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Music Player
+Comment=Tauri Music Player
+Exec=/home/neurotech/projects/music-player/run.fish
+Icon=audio-x-generic
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;

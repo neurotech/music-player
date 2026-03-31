@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
+import { platform } from "@tauri-apps/plugin-os";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { AlbumView } from "./components/AlbumView";
@@ -108,13 +109,15 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const NEXT_TRACK_SHORTCUT = "Control+Command+PageDown";
-    const PREV_TRACK_SHORTCUT = "Control+Command+PageUp";
-    const PLAY_PAUSE_SHORTCUT = "Control+Command+Home";
-    const VOLUME_UP_SHORTCUT = "Control+Command+ArrowUp";
-    const VOLUME_DOWN_SHORTCUT = "Control+Command+ArrowDown";
-    const SEARCH_SHORTCUT = "Control+Command+KeyL";
-    const RANDOM_SONG_SHORTCUT = "Control+Command+Backspace";
+    const isMacOS = platform() === "macos";
+    const OS_PREFIX = isMacOS ? "Control+Command+" : "Control+Alt+";
+    const NEXT_TRACK_SHORTCUT = `${OS_PREFIX}PageDown`;
+    const PREV_TRACK_SHORTCUT = `${OS_PREFIX}PageUp`;
+    const PLAY_PAUSE_SHORTCUT = `${OS_PREFIX}Home`;
+    const VOLUME_UP_SHORTCUT = `${OS_PREFIX}ArrowUp`;
+    const VOLUME_DOWN_SHORTCUT = `${OS_PREFIX}ArrowDown`;
+    const SEARCH_SHORTCUT = `${OS_PREFIX}KeyL`;
+    const RANDOM_SONG_SHORTCUT = `${OS_PREFIX}Backspace`;
 
     const VOLUME_STEP = 0.1;
 

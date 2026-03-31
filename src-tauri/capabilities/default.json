@@ -9,6 +9,8 @@
     "store:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
-    "window-state:default"
+    "window-state:default",
+    "core:window:allow-destroy",
+    "os:default"
   ]
 }
