@@ -8,44 +8,46 @@ import {
   Radio,
   SkipBack,
   SkipForward,
+  Sparkles,
   Square,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { type PlayerState, player } from "../lib/player";
+import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/Button";
+import { formatDurationSeconds } from "@/lib/format";
+import { usePlayerState } from "../hooks/usePlayerState";
+import { player } from "../lib/player";
 
 interface PlayerBarProps {
   onQueueClick?: () => void;
   isQueueOpen?: boolean;
   activeView?: "albums" | "radio";
   onViewChange?: (view: "albums" | "radio") => void;
+  isImmersiveOpen?: boolean;
+  onImmersiveToggle?: () => void;
 }
 
-function formatTime(seconds: number): string {
-  if (!seconds || !Number.isFinite(seconds)) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
+const SEEK_STEP_SEC = 5;
 
 export function PlayerBar({
   onQueueClick,
   isQueueOpen,
   activeView = "albums",
   onViewChange,
+  isImmersiveOpen,
+  onImmersiveToggle,
 }: PlayerBarProps) {
-  const [state, setState] = useState<PlayerState>(player.getState());
-  const [discordEnabled, setDiscordEnabled] = useState(
+  const state = usePlayerState();
+  const [discordEnabled, setDiscordEnabled] = useState(() =>
     player.isDiscordEnabled(),
   );
-  const [discordConnected, setDiscordConnected] = useState(
+  const [discordConnected, setDiscordConnected] = useState(() =>
     player.isDiscordConnected(),
   );
 
   useEffect(() => {
-    return player.subscribe((newState) => {
-      setState(newState);
+    return player.subscribe(() => {
       setDiscordEnabled(player.isDiscordEnabled());
       setDiscordConnected(player.isDiscordConnected());
     });
@@ -57,8 +59,31 @@ export function PlayerBar({
     setDiscordEnabled(newEnabled);
   }, [discordEnabled]);
 
+  const handleSeekKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    const s = player.getState();
+    if (s.currentRadio) return;
+    const dur = s.duration;
+    if (!(s.currentTrack && dur > 0)) return;
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const next = Math.max(0, s.currentTime - SEEK_STEP_SEC);
+      player.seek(next);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const next = Math.min(dur, s.currentTime + SEEK_STEP_SEC);
+      player.seek(next);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      player.seek(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      player.seek(dur);
+    }
+  }, []);
+
   const isRadioPlaying = !!state.currentRadio;
-  const hasContent = state.currentTrack || state.currentRadio;
+  const hasContent = Boolean(state.currentTrack || state.currentRadio);
 
   const progress =
     state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0;
@@ -70,37 +95,37 @@ export function PlayerBar({
       }`}
     >
       <div className="flex items-center gap-4">
-        {/* View tabs */}
         <div className="flex items-center gap-1 border-zinc-800 border-r pr-4">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onViewChange?.("albums")}
-            className={`cursor-pointer rounded-sm p-1.5 transition-colors ${
+            className={
               activeView === "albums"
                 ? "bg-zinc-800 text-indigo-400"
-                : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-            }`}
+                : "text-zinc-500"
+            }
             aria-label="Albums"
             title="Albums"
           >
             <Disc3 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onViewChange?.("radio")}
-            className={`cursor-pointer rounded-sm p-1.5 transition-colors ${
+            className={
               activeView === "radio"
                 ? "bg-zinc-800 text-indigo-400"
-                : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-            }`}
+                : "text-zinc-500"
+            }
             aria-label="Radio"
             title="Radio"
           >
             <Radio className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
-        {/* Progress bar or Radio indicator */}
         <div className="flex flex-1 items-center gap-4">
           {isRadioPlaying ? (
             <div className="flex flex-1 items-center gap-3">
@@ -118,7 +143,7 @@ export function PlayerBar({
           ) : hasContent ? (
             <>
               <span className="w-8 text-right text-sm text-zinc-500">
-                {formatTime(state.currentTime)}
+                {formatDurationSeconds(state.currentTime)}
               </span>
               <div
                 className="group h-2 flex-1 cursor-pointer rounded-sm bg-zinc-800"
@@ -127,12 +152,12 @@ export function PlayerBar({
                   const percent = (e.clientX - rect.left) / rect.width;
                   player.seek(percent * state.duration);
                 }}
-                onKeyDown={() => {}}
+                onKeyDown={handleSeekKeyDown}
                 role="slider"
                 aria-label="Seek"
-                aria-valuenow={state.currentTime}
+                aria-valuenow={Math.round(state.currentTime)}
                 aria-valuemin={0}
-                aria-valuemax={state.duration}
+                aria-valuemax={Math.round(state.duration)}
                 tabIndex={0}
               >
                 <div
@@ -143,7 +168,7 @@ export function PlayerBar({
                 </div>
               </div>
               <span className="w-8 text-sm text-zinc-500">
-                {formatTime(state.duration)}
+                {formatDurationSeconds(state.duration)}
               </span>
             </>
           ) : (
@@ -151,15 +176,13 @@ export function PlayerBar({
           )}
         </div>
 
-        {/* Controls and Volume */}
         <div className="flex items-center gap-4">
-          {/* Controls */}
           <div className="flex items-center gap-2">
             {!isRadioPlaying && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => player.previous()}
-                className="cursor-pointer rounded-sm p-1.5 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Previous"
                 disabled={!hasContent}
               >
@@ -167,28 +190,28 @@ export function PlayerBar({
                   className="h-3.5 w-3.5 text-zinc-400"
                   fill="currentColor"
                 />
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
+            <Button
+              size="icon"
               onClick={() => player.togglePlayPause()}
-              className="cursor-pointer rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 p-2 shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={state.isPlaying ? "Pause" : "Play"}
               disabled={!hasContent}
+              className="p-2"
             >
               {state.isPlaying ? (
                 <Pause className="h-3.5 w-3.5" fill="currentColor" />
               ) : (
                 <Play className="h-3.5 w-3.5" fill="currentColor" />
               )}
-            </button>
+            </Button>
 
             {!isRadioPlaying && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => player.next()}
-                className="cursor-pointer rounded-sm p-1.5 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Next"
                 disabled={!hasContent}
               >
@@ -196,13 +219,13 @@ export function PlayerBar({
                   className="h-3.5 w-3.5 text-zinc-400"
                   fill="currentColor"
                 />
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => player.stop()}
-              className="cursor-pointer rounded-sm p-1.5 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Stop"
               disabled={!hasContent}
             >
@@ -210,15 +233,14 @@ export function PlayerBar({
                 className="h-3.5 w-3.5 text-zinc-400"
                 fill="currentColor"
               />
-            </button>
+            </Button>
           </div>
 
-          {/* Volume */}
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => player.setVolume(state.volume === 0 ? 1 : 0)}
-              className="cursor-pointer rounded-sm p-1 transition-colors hover:bg-zinc-800"
               aria-label={state.volume === 0 ? "Unmute" : "Mute"}
             >
               {state.volume === 0 ? (
@@ -226,7 +248,7 @@ export function PlayerBar({
               ) : (
                 <Volume2 className="h-3.5 w-3.5 text-zinc-500" />
               )}
-            </button>
+            </Button>
             <input
               type="range"
               min="0"
@@ -239,16 +261,12 @@ export function PlayerBar({
             />
           </div>
 
-          {/* Discord toggle - only show when connected */}
           {discordConnected && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleToggleDiscord}
-              className={`cursor-pointer rounded-sm p-1.5 transition-colors ${
-                discordEnabled
-                  ? "text-indigo-400 hover:bg-zinc-800"
-                  : "text-zinc-500 hover:bg-zinc-800"
-              }`}
+              className={discordEnabled ? "text-indigo-400" : "text-zinc-500"}
               aria-label={
                 discordEnabled
                   ? "Disable Discord status"
@@ -263,23 +281,40 @@ export function PlayerBar({
               ) : (
                 <MessageCircleOff className="h-4 w-4" />
               )}
-            </button>
+            </Button>
           )}
 
-          {/* Queue button - only show when not playing radio */}
+          {onImmersiveToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onImmersiveToggle}
+              className={
+                isImmersiveOpen
+                  ? "bg-indigo-600 text-white hover:bg-indigo-600"
+                  : "text-zinc-400"
+              }
+              aria-label="Immersive now playing"
+              title="Immersive now playing (global shortcut: OS prefix + backslash)"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+          )}
+
           {!isRadioPlaying && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onQueueClick}
-              className={`cursor-pointer rounded-sm p-1.5 transition-colors ${
+              className={
                 isQueueOpen
-                  ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:bg-zinc-800"
-              }`}
+                  ? "bg-indigo-600 text-white hover:bg-indigo-600"
+                  : "text-zinc-400"
+              }
               aria-label="Queue"
             >
               <ListMusic className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -1,7 +1,11 @@
 import { Music, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { type PlayerState, player } from "../lib/player";
-import type { SubsonicClient } from "../lib/subsonic";
+import { useMemo } from "react";
+import { Button } from "@/components/Button";
+import { CoverArt } from "@/components/CoverArt";
+import type { SubsonicClient } from "@/lib/subsonic-client";
+import { useCoverArtUrls } from "@/lib/useCoverArtUrls";
+import { usePlayerState } from "../hooks/usePlayerState";
+import { player } from "../lib/player";
 
 interface QueueSidebarProps {
   isOpen: boolean;
@@ -16,30 +20,20 @@ export function QueueSidebar({
   client,
   onAlbumClick,
 }: QueueSidebarProps) {
-  const [state, setState] = useState<PlayerState>(player.getState());
-  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
+  const state = usePlayerState();
 
-  useEffect(() => {
-    return player.subscribe(setState);
-  }, []);
+  const coverEntries = useMemo(() => {
+    const ids = [
+      ...new Set(
+        state.queue
+          .map((s) => s.coverArt)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    return ids.map((id) => ({ key: id, coverArtId: id }));
+  }, [state.queue]);
 
-  useEffect(() => {
-    async function loadCovers() {
-      const urls: Record<string, string> = {};
-      for (const song of state.queue) {
-        if (song.coverArt) {
-          urls[song.coverArt] = await client.getCoverArtUrlWithAuth(
-            song.coverArt,
-            80,
-          );
-        }
-      }
-      if (Object.keys(urls).length > 0) {
-        setCoverUrls(urls);
-      }
-    }
-    loadCovers();
-  }, [state.queue, client]);
+  const coverUrls = useCoverArtUrls(client, coverEntries, 80);
 
   return (
     <div
@@ -52,24 +46,24 @@ export function QueueSidebar({
           <h2 className="font-semibold text-zinc-200">Queue</h2>
           <div className="flex items-center gap-1">
             {state.queue.length > 0 && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => player.stop()}
-                className="cursor-pointer rounded-sm p-1.5 transition-colors hover:bg-zinc-800"
                 aria-label="Clear queue"
                 title="Clear queue"
               >
                 <Trash2 className="h-4 w-4 text-zinc-400" />
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onClose}
-              className="cursor-pointer rounded-sm p-1.5 transition-colors hover:bg-zinc-800"
               aria-label="Close"
             >
               <X className="h-4 w-4 text-zinc-400" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -85,7 +79,7 @@ export function QueueSidebar({
                 const isCurrentTrack = index === state.queueIndex;
                 const coverUrl = song.coverArt
                   ? coverUrls[song.coverArt]
-                  : null;
+                  : undefined;
 
                 return (
                   <button
@@ -113,17 +107,12 @@ export function QueueSidebar({
                         index + 1
                       )}
                     </span>
-                    {coverUrl ? (
-                      <img
-                        src={coverUrl}
-                        alt={song.album}
-                        className={`h-9 w-9 shrink-0 rounded-sm border border-zinc-700 transition-colors ${isCurrentTrack ? "bg-indigo-500" : ""}`}
-                      />
-                    ) : (
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-800 transition-colors">
-                        <Music className="h-4 w-4 text-zinc-600" />
-                      </div>
-                    )}
+                    <CoverArt
+                      url={coverUrl ?? null}
+                      alt={song.album}
+                      frame="squareSm"
+                      className={isCurrentTrack ? "bg-indigo-500" : ""}
+                    />
                     <div className="min-w-0 flex-1">
                       <p
                         className={`truncate text-sm transition-colors ${

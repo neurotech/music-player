@@ -1,29 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { loadDiscordConfig, saveDiscordConfig } from "./discord-config";
-import { getStoreValue, removeStoreValue, setStoreValue } from "./store";
-import type { InternetRadioStation, Song, SubsonicClient } from "./subsonic";
-
-export interface PlayerState {
-  currentTrack: Song | null;
-  currentRadio: InternetRadioStation | null;
-  queue: Song[];
-  queueIndex: number;
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  volume: number;
-}
-
-interface PersistedPlayerState {
-  currentTrack: Song | null;
-  queue: Song[];
-  queueIndex: number;
-  currentTime: number;
-}
-
-type PlayerListener = (state: PlayerState) => void;
-type TrackChangeListener = (track: Song) => void;
+import {
+  loadDiscordConfig,
+  saveDiscordConfig,
+} from "@/features/settings/lib/discord-config";
+import { getStoreValue, removeStoreValue, setStoreValue } from "@/lib/store";
+import type { SubsonicClient } from "@/lib/subsonic-client";
+import type { InternetRadioStation, Song } from "@/types/subsonic";
+import type {
+  PersistedPlayerState,
+  PlayerListener,
+  PlayerState,
+  TrackChangeListener,
+} from "../types";
 
 const VOLUME_STORAGE_KEY = "player-volume";
 const PLAYBACK_STATE_KEY = "player-playback-state";
