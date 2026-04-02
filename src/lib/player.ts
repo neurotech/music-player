@@ -1,11 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { loadDiscordConfig } from "./discord-config";
+import { loadDiscordConfig, saveDiscordConfig } from "./discord-config";
 import { getStoreValue, removeStoreValue, setStoreValue } from "./store";
-import type { Song, SubsonicClient } from "./subsonic";
+import type { InternetRadioStation, Song, SubsonicClient } from "./subsonic";
 
 export interface PlayerState {
   currentTrack: Song | null;
+  currentRadio: InternetRadioStation | null;
   queue: Song[];
   queueIndex: number;
   isPlaying: boolean;
@@ -32,6 +33,7 @@ class AudioPlayer {
   private client: SubsonicClient | null = null;
   private state: PlayerState = {
     currentTrack: null,
+    currentRadio: null,
     queue: [],
     queueIndex: -1,
     isPlaying: false,
@@ -106,6 +108,7 @@ class AudioPlayer {
     if (config.enabled && config.applicationId) {
       try {
         await this.connectDiscord(config.applicationId);
+        this.discordEnabled = config.statusEnabled;
       } catch (err) {
         console.warn("Failed to connect to Discord on startup:", err);
       }
@@ -137,13 +140,43 @@ class AudioPlayer {
     this.discordEnabled = false;
   }
 
+  isDiscordConnected(): boolean {
+    return this.discordConnected;
+  }
+
+  isDiscordEnabled(): boolean {
+    return this.discordEnabled;
+  }
+
+  async setDiscordEnabled(enabled: boolean): Promise<void> {
+    this.discordEnabled = enabled;
+    if (enabled && this.state.isPlaying) {
+      this.updateDiscordActivity();
+    } else if (!enabled) {
+      this.clearDiscordActivity();
+    }
+
+    const config = await loadDiscordConfig();
+    await saveDiscordConfig({ ...config, statusEnabled: enabled });
+  }
+
   private async updateDiscordActivity() {
-    if (
-      !this.discordConnected ||
-      !this.discordEnabled ||
-      !this.state.currentTrack
-    )
+    if (!this.discordConnected || !this.discordEnabled) return;
+
+    if (this.state.currentRadio) {
+      try {
+        await invoke("update_discord_activity", {
+          title: this.state.currentRadio.name,
+          artist: this.state.currentRadio.name,
+          album: "",
+        });
+      } catch (err) {
+        console.warn("Failed to update Discord activity:", err);
+      }
       return;
+    }
+
+    if (!this.state.currentTrack) return;
 
     try {
       await invoke("update_discord_activity", {
@@ -157,7 +190,7 @@ class AudioPlayer {
   }
 
   private async clearDiscordActivity() {
-    if (!this.discordConnected || !this.discordEnabled) return;
+    if (!this.discordConnected) return;
 
     try {
       await invoke("clear_discord_activity");
@@ -203,9 +236,43 @@ class AudioPlayer {
   async playQueue(songs: Song[], startIndex = 0) {
     if (!this.client || songs.length === 0) return;
 
+    this.state.currentRadio = null;
     this.state.queue = songs;
     this.state.queueIndex = startIndex;
     await this.loadAndPlay(songs[startIndex]);
+  }
+
+  async playRadio(station: InternetRadioStation): Promise<void> {
+    this.state.currentTrack = null;
+    this.state.queue = [];
+    this.state.queueIndex = -1;
+    this.state.currentRadio = station;
+    this.state.duration = 0;
+    this.state.currentTime = 0;
+    this.notify();
+
+    try {
+      this.audio.src = station.streamUrl;
+      await this.audio.play();
+      this.updateDiscordActivity();
+    } catch (err) {
+      console.error("Failed to play radio station:", err);
+      this.state.currentRadio = null;
+      this.notify();
+    }
+  }
+
+  stopRadio() {
+    if (this.state.currentRadio) {
+      this.audio.pause();
+      this.audio.src = "";
+      this.state.currentRadio = null;
+      this.state.isPlaying = false;
+      this.state.currentTime = 0;
+      this.state.duration = 0;
+      this.notify();
+      this.clearDiscordActivity();
+    }
   }
 
   private async loadAndPlay(song: Song) {
@@ -351,6 +418,7 @@ class AudioPlayer {
     this.audio.pause();
     this.audio.src = "";
     this.state.currentTrack = null;
+    this.state.currentRadio = null;
     this.state.isPlaying = false;
     this.state.currentTime = 0;
     this.state.duration = 0;

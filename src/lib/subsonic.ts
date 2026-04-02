@@ -88,6 +88,19 @@ interface SearchResponse {
   searchResult3: SearchResult;
 }
 
+export interface InternetRadioStation {
+  id: string;
+  name: string;
+  streamUrl: string;
+  homePageUrl?: string;
+}
+
+interface InternetRadioStationsResponse {
+  internetRadioStations: {
+    internetRadioStation?: InternetRadioStation[];
+  };
+}
+
 interface RandomSongsResponse {
   randomSongs: {
     song: Song[];
@@ -449,6 +462,42 @@ export class SubsonicClient {
       size: size.toString(),
     });
     return response.randomSongs?.song || [];
+  }
+
+  async getInternetRadioStations(): Promise<InternetRadioStation[]> {
+    const response = await this.request<InternetRadioStationsResponse>(
+      "getInternetRadioStations",
+    );
+    return response.internetRadioStations?.internetRadioStation || [];
+  }
+
+  async createInternetRadioStation(
+    name: string,
+    streamUrl: string,
+    homePageUrl?: string,
+  ): Promise<void> {
+    const params: Record<string, string> = { name, streamUrl };
+    if (homePageUrl) {
+      params.homepageUrl = homePageUrl;
+    }
+    await this.request("createInternetRadioStation", params);
+  }
+
+  async updateInternetRadioStation(
+    id: string,
+    name: string,
+    streamUrl: string,
+    homePageUrl?: string,
+  ): Promise<void> {
+    const params: Record<string, string> = { id, name, streamUrl };
+    if (homePageUrl) {
+      params.homepageUrl = homePageUrl;
+    }
+    await this.request("updateInternetRadioStation", params);
+  }
+
+  async deleteInternetRadioStation(id: string): Promise<void> {
+    await this.request("deleteInternetRadioStation", { id });
   }
 }
 

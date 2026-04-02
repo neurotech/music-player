@@ -37,9 +37,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setStatus("idle");
     setErrorMessage("");
 
+    const existingConfig = await loadDiscordConfig();
     const config: DiscordConfig = {
       enabled: discordEnabled,
       applicationId: applicationId.trim(),
+      statusEnabled: existingConfig.statusEnabled,
     };
 
     try {

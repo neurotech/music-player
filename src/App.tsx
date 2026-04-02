@@ -8,6 +8,7 @@ import { ConnectionForm } from "./components/ConnectionForm";
 import { NowPlayingHeader } from "./components/NowPlayingHeader";
 import { PlayerBar } from "./components/PlayerBar";
 import { QueueSidebar } from "./components/QueueSidebar";
+import { RadioList } from "./components/RadioList";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { player } from "./lib/player";
@@ -34,6 +35,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"albums" | "radio">("albums");
 
   // Navigation history for mouse back/forward buttons
   const historyStack = useRef<(string | null)[]>([null]);
@@ -265,9 +267,16 @@ function App() {
     setSavedCredentials(null);
     setSelectedAlbumId(null);
     persistSelectedAlbumId(null);
-    // Reset navigation history
+    setActiveView("albums");
     historyStack.current = [null];
     historyIndex.current = 0;
+  }
+
+  function handleViewChange(view: "albums" | "radio") {
+    setActiveView(view);
+    if (view === "radio") {
+      setSelectedAlbumId(null);
+    }
   }
 
   return (
@@ -278,7 +287,9 @@ function App() {
           <div className="mx-auto flex w-full max-w-7xl flex-1 animate-fade-in flex-col overflow-hidden p-4 pb-16">
             {client ? (
               <>
-                {selectedAlbumId ? (
+                {activeView === "radio" ? (
+                  <RadioList client={client} />
+                ) : selectedAlbumId ? (
                   <AlbumView
                     albumId={selectedAlbumId}
                     client={client}
@@ -299,6 +310,8 @@ function App() {
                     persistIsQueueOpen(newState);
                   }}
                   isQueueOpen={isQueueOpen}
+                  activeView={activeView}
+                  onViewChange={handleViewChange}
                 />
                 <SettingsModal
                   isOpen={isSettingsOpen}
