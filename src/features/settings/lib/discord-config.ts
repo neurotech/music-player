@@ -1,4 +1,4 @@
-import { getStoreValue, setStoreValue } from "./store";
+import { getStoreValue, setStoreValue } from "@/lib/store";
 
 export interface DiscordConfig {
   enabled: boolean;
