@@ -1,68 +1,13 @@
-export interface SubsonicCredentials {
-  serverUrl: string;
-  username: string;
-  password: string;
-}
-
-export interface Album {
-  id: string;
-  name: string;
-  artist: string;
-  artistId?: string;
-  coverArt?: string;
-  songCount: number;
-  duration: number;
-  year?: number;
-  genre?: string;
-  playCount?: number;
-  created?: string;
-  played?: string;
-}
-
-export type AlbumListType =
-  | "random"
-  | "newest"
-  | "frequent"
-  | "recent"
-  | "starred"
-  | "alphabeticalByName"
-  | "alphabeticalByArtist";
-
-export interface SortOption {
-  type: AlbumListType;
-  label: string;
-  supportsDirection: boolean;
-}
-
-export interface SubsonicResponse<T> {
-  "subsonic-response": {
-    status: "ok" | "failed";
-    version: string;
-    error?: { code: number; message: string };
-  } & T;
-}
-
-export interface Song {
-  id: string;
-  title: string;
-  album: string;
-  albumId: string;
-  artist: string;
-  artistId?: string;
-  track?: number;
-  year?: number;
-  genre?: string;
-  coverArt?: string;
-  duration: number;
-  bitRate?: number;
-  suffix?: string;
-  contentType?: string;
-  path?: string;
-}
-
-export interface AlbumWithSongs extends Album {
-  song: Song[];
-}
+import type {
+  Album,
+  AlbumListType,
+  AlbumWithSongs,
+  InternetRadioStation,
+  SearchResult,
+  Song,
+  SubsonicCredentials,
+  SubsonicResponse,
+} from "@/types/subsonic";
 
 interface AlbumListResponse {
   albumList2: {
@@ -78,21 +23,8 @@ interface PingResponse {
   version: string;
 }
 
-export interface SearchResult {
-  artist?: { id: string; name: string }[];
-  album?: Album[];
-  song?: Song[];
-}
-
 interface SearchResponse {
   searchResult3: SearchResult;
-}
-
-export interface InternetRadioStation {
-  id: string;
-  name: string;
-  streamUrl: string;
-  homePageUrl?: string;
 }
 
 interface InternetRadioStationsResponse {
@@ -119,7 +51,6 @@ function generateSalt(length = 8): string {
 async function md5(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest("MD5", msgBuffer).catch(() => {
-    // MD5 not available in crypto.subtle, use fallback
     return null;
   });
 
@@ -128,7 +59,6 @@ async function md5(message: string): Promise<string> {
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
-  // Fallback: simple MD5 implementation
   return md5Fallback(message);
 }
 
@@ -353,6 +283,7 @@ export class SubsonicClient {
   private credentials: SubsonicCredentials;
   private clientName = "MusicPlayer";
   private apiVersion = "1.16.1";
+  private readonly coverArtUrlCache = new Map<string, string>();
 
   constructor(credentials: SubsonicCredentials) {
     this.credentials = credentials;
@@ -426,12 +357,18 @@ export class SubsonicClient {
     coverArtId: string,
     size = 300,
   ): Promise<string> {
+    const cacheKey = `${coverArtId}:${size}`;
+    const cached = this.coverArtUrlCache.get(cacheKey);
+    if (cached) return cached;
+
     const authParams = await this.buildAuthParams();
     authParams.set("id", coverArtId);
     authParams.set("size", size.toString());
 
     const baseUrl = this.credentials.serverUrl.replace(/\/$/, "");
-    return `${baseUrl}/rest/getCoverArt?${authParams.toString()}`;
+    const url = `${baseUrl}/rest/getCoverArt?${authParams.toString()}`;
+    this.coverArtUrlCache.set(cacheKey, url);
+    return url;
   }
 
   async getAlbum(id: string): Promise<AlbumWithSongs> {
@@ -499,22 +436,4 @@ export class SubsonicClient {
   async deleteInternetRadioStation(id: string): Promise<void> {
     await this.request("deleteInternetRadioStation", { id });
   }
-}
-
-import { getStoreValue, removeStoreValue, setStoreValue } from "./store";
-
-const STORAGE_KEY = "navidrome-credentials";
-
-export async function saveCredentials(
-  credentials: SubsonicCredentials,
-): Promise<void> {
-  await setStoreValue(STORAGE_KEY, credentials);
-}
-
-export async function loadCredentials(): Promise<SubsonicCredentials | null> {
-  return await getStoreValue<SubsonicCredentials>(STORAGE_KEY);
-}
-
-export async function clearCredentials(): Promise<void> {
-  await removeStoreValue(STORAGE_KEY);
 }
