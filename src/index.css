@@ -59,6 +59,18 @@
       color: #fb7185;
     }
   }
+
+  @keyframes immersive-breathe {
+    0%,
+    100% {
+      opacity: 0.78;
+    }
+    50% {
+      opacity: 0.94;
+    }
+  }
+
+  --animate-immersive-breathe: immersive-breathe 28s ease-in-out infinite;
 }
 
 html {
