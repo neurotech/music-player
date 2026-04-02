@@ -1,12 +1,25 @@
-import { Disc3, Music, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { player } from "../lib/player";
-import type {
-  Album,
-  SearchResult,
-  Song,
-  SubsonicClient,
-} from "../lib/subsonic";
+import { Search } from "lucide-react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { CoverArt } from "@/components/CoverArt";
+import { formInputClassName } from "@/components/Input";
+import { Modal } from "@/components/Modal";
+import { ModalHeader } from "@/components/ModalHeader";
+import { panelClass } from "@/components/panel-styles";
+import { player } from "@/features/player/lib/player";
+import { cn } from "@/lib/cn";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import type { SubsonicClient } from "@/lib/subsonic-client";
+import { useCoverArtUrls } from "@/lib/useCoverArtUrls";
+import { useDebouncedCallback } from "@/lib/useDebouncedCallback";
+import type { Album, SearchResult, Song } from "@/types/subsonic";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -34,9 +47,7 @@ export function SearchModal({
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
 
   const flattenedResults = useMemo(() => {
@@ -68,44 +79,36 @@ export function SearchModal({
     return items;
   }, [results]);
 
+  const coverArtEntries = useMemo(
+    () =>
+      flattenedResults
+        .filter((item): item is SearchItem & { coverArt: string } =>
+          Boolean(item.coverArt),
+        )
+        .map((item) => ({
+          key: item.coverArt,
+          coverArtId: item.coverArt,
+        })),
+    [flattenedResults],
+  );
+
+  const coverUrls = useCoverArtUrls(
+    isOpen ? client : null,
+    coverArtEntries,
+    48,
+  );
+
   useEffect(() => {
     if (isOpen) {
       setQuery("");
       setResults(null);
       setSelectedIndex(0);
-      setCoverUrls({});
-      setTimeout(() => inputRef.current?.focus(), 0);
+      const outer = requestAnimationFrame(() => {
+        requestAnimationFrame(() => inputRef.current?.focus());
+      });
+      return () => cancelAnimationFrame(outer);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadCoverUrls() {
-      const coverArtIds = flattenedResults
-        .map((item) => item.coverArt)
-        .filter((id): id is string => id !== undefined);
-
-      const newUrls: Record<string, string> = {};
-      for (const coverArtId of coverArtIds) {
-        if (cancelled) return;
-        try {
-          const url = await client.getCoverArtUrlWithAuth(coverArtId, 48);
-          newUrls[coverArtId] = url;
-        } catch {
-          // Ignore cover art loading errors
-        }
-      }
-      if (!cancelled && Object.keys(newUrls).length > 0) {
-        setCoverUrls((prev) => ({ ...prev, ...newUrls }));
-      }
-    }
-    if (flattenedResults.length > 0) {
-      loadCoverUrls();
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [flattenedResults, client]);
 
   useEffect(() => {
     if (selectedIndex >= 0 && resultsContainerRef.current) {
@@ -118,7 +121,7 @@ export function SearchModal({
     }
   }, [selectedIndex]);
 
-  const performSearch = useCallback(
+  const runSearch = useCallback(
     async (searchQuery: string) => {
       if (!searchQuery.trim()) {
         setResults(null);
@@ -141,102 +144,89 @@ export function SearchModal({
     [client],
   );
 
-  function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
+  const debouncedSearch = useDebouncedCallback(runSearch, SEARCH_DEBOUNCE_MS);
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+  const handleQueryChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const newQuery = e.target.value;
+      setQuery(newQuery);
 
-    debounceRef.current = setTimeout(() => {
-      performSearch(newQuery);
-    }, 300);
-  }
+      if (!newQuery.trim()) {
+        setResults(null);
+        setSelectedIndex(0);
+        return;
+      }
 
-  async function handleSelectItem(item: SearchItem) {
-    if (item.type === "album") {
-      try {
-        const albumData = await client.getAlbum(item.id);
-        if (albumData.song && albumData.song.length > 0) {
-          await player.playQueue(albumData.song, 0);
+      debouncedSearch(newQuery);
+    },
+    [debouncedSearch],
+  );
+
+  const handleSelectItem = useCallback(
+    async (item: SearchItem) => {
+      if (item.type === "album") {
+        try {
+          const albumData = await client.getAlbum(item.id);
+          if (albumData.song && albumData.song.length > 0) {
+            await player.playQueue(albumData.song, 0);
+          }
+          onAlbumClick(item.id);
+          onClose();
+        } catch (err) {
+          console.error("Failed to play album:", err);
         }
-        onAlbumClick(item.id);
+      } else {
+        const song = item.data as Song;
+        await player.playQueue([song], 0);
+        onAlbumClick(song.albumId);
         onClose();
-      } catch (err) {
-        console.error("Failed to play album:", err);
       }
-    } else {
-      const song = item.data as Song;
-      await player.playQueue([song], 0);
-      onAlbumClick(song.albumId);
-      onClose();
-    }
-  }
+    },
+    [client, onAlbumClick, onClose],
+  );
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape") {
-      onClose();
-      return;
-    }
+  const handleModalKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (flattenedResults.length === 0) return;
 
-    if (flattenedResults.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev < flattenedResults.length - 1 ? prev + 1 : prev,
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const selectedItem = flattenedResults[selectedIndex];
-      if (selectedItem) {
-        handleSelectItem(selectedItem);
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < flattenedResults.length - 1 ? prev + 1 : prev,
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const selectedItem = flattenedResults[selectedIndex];
+        if (selectedItem) {
+          handleSelectItem(selectedItem);
+        }
       }
-    }
-  }
-
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }
-
-  if (!isOpen) return null;
+    },
+    [flattenedResults, selectedIndex, handleSelectItem],
+  );
 
   const hasResults = flattenedResults.length > 0;
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex animate-fade-in items-start justify-center bg-black/60 pt-[15vh]"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-start justify-center bg-black/60 pt-[15vh]"
+      onKeyDown={handleModalKeyDown}
       aria-labelledby="search-title"
     >
       <div className="mx-4 w-full max-w-lg">
-        <div className="overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900 shadow-[0_1px_rgba(255,255,255,0.05)_inset]">
-          <div className="flex items-center justify-between border-zinc-900 border-b bg-zinc-800/80 px-3 py-2">
-            <h2
-              id="search-title"
-              className="font-semibold text-sm text-zinc-100"
-            >
-              Search
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer text-zinc-400 transition-colors hover:text-zinc-200"
-              aria-label="Close search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+        <div className={panelClass}>
+          <ModalHeader
+            title="Search"
+            titleId="search-title"
+            onClose={onClose}
+            closeLabel="Close search"
+          />
 
           <div className="p-3">
             <div className="relative">
@@ -247,7 +237,7 @@ export function SearchModal({
                 value={query}
                 onChange={handleQueryChange}
                 placeholder="Search albums and tracks..."
-                className="w-full rounded-sm border border-zinc-800 bg-zinc-950 py-2 pr-3 pl-8 text-sm text-zinc-100 transition-colors placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+                className={cn(formInputClassName, "py-2 pr-3 pl-8")}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -279,21 +269,15 @@ export function SearchModal({
                           : "hover:bg-zinc-800/50"
                       }`}
                     >
-                      {item.coverArt && coverUrls[item.coverArt] ? (
-                        <img
-                          src={coverUrls[item.coverArt]}
-                          alt=""
-                          className="h-10 w-10 rounded-sm border border-zinc-800 object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-800">
-                          {item.type === "album" ? (
-                            <Disc3 className="h-5 w-5 text-zinc-600" />
-                          ) : (
-                            <Music className="h-5 w-5 text-zinc-600" />
-                          )}
-                        </div>
-                      )}
+                      <CoverArt
+                        url={
+                          item.coverArt
+                            ? (coverUrls[item.coverArt] ?? null)
+                            : null
+                        }
+                        alt=""
+                        frame="search"
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-zinc-100">
                           {item.title}
@@ -326,6 +310,6 @@ export function SearchModal({
           to play
         </p>
       </div>
-    </div>
+    </Modal>
   );
 }

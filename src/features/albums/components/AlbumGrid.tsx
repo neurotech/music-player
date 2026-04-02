@@ -1,19 +1,25 @@
 import {
-  Music,
+  LogOut,
   Search,
   Settings,
   TrendingDown,
   TrendingUp,
   X,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { Album, AlbumListType, SubsonicClient } from "../lib/subsonic";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/Button";
+import { CoverArt } from "@/components/CoverArt";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import type { SubsonicClient } from "@/lib/subsonic-client";
+import { useCoverArtUrls } from "@/lib/useCoverArtUrls";
+import { useDebouncedCallback } from "@/lib/useDebouncedCallback";
+import type { Album, AlbumListType } from "@/types/subsonic";
 
 interface AlbumGridProps {
   client: SubsonicClient;
-  onDisconnect: () => void;
   onAlbumClick: (albumId: string) => void;
   onOpenSettings: () => void;
+  onDisconnect: () => void;
 }
 
 interface AlbumCardProps {
@@ -39,20 +45,8 @@ const AlbumCard = memo(function AlbumCard({
       title={`${album.name} by ${album.artist}`}
       onClick={handleClick}
     >
-      <div className="mb-1.5 aspect-square overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={album.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-zinc-700">
-            <Music className="h-8 w-8" aria-label="No album cover" />
-          </div>
-        )}
+      <div className="mb-1.5 aspect-square w-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+        <CoverArt url={coverUrl} alt={album.name} frame="fill" />
       </div>
       {album.name && album.name !== "[Unknown Album]" ? (
         <>
@@ -94,11 +88,11 @@ export const AlbumGrid = memo(function AlbumGrid({
   client,
   onAlbumClick,
   onOpenSettings,
+  onDisconnect,
 }: AlbumGridProps) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const [sortType, setSortType] = useState<AlbumListType>("newest");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -107,9 +101,21 @@ export const AlbumGrid = memo(function AlbumGrid({
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState<number | null>(null);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const totalPagesCacheRef = useRef<Map<AlbumListType, number>>(new Map());
+
+  // Reset cached page counts when the connected server/client instance changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency on `client` identity
+  useEffect(() => {
+    totalPagesCacheRef.current.clear();
+  }, [client]);
 
   const fetchTotalPages = useCallback(async () => {
+    const cached = totalPagesCacheRef.current.get(sortType);
+    if (cached !== undefined) {
+      setTotalPages(cached);
+      return;
+    }
+
     let low = 0;
     let high = 100;
 
@@ -132,6 +138,7 @@ export const AlbumGrid = memo(function AlbumGrid({
       }
     }
 
+    totalPagesCacheRef.current.set(sortType, low);
     setTotalPages(low);
   }, [client, sortType]);
 
@@ -148,27 +155,6 @@ export const AlbumGrid = memo(function AlbumGrid({
         sortDirection === "asc" ? [...albumList].reverse() : albumList;
 
       setAlbums(sortedAlbums);
-
-      const urlEntries = await Promise.all(
-        sortedAlbums.map(async (album) => {
-          if (album.coverArt) {
-            const url = await client.getCoverArtUrlWithAuth(
-              album.coverArt,
-              300,
-            );
-            return [album.id, url] as const;
-          }
-          return null;
-        }),
-      );
-
-      const urls: Record<string, string> = {};
-      for (const entry of urlEntries) {
-        if (entry) {
-          urls[entry[0]] = entry[1];
-        }
-      }
-      setCoverUrls(urls);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch albums");
     } finally {
@@ -176,7 +162,7 @@ export const AlbumGrid = memo(function AlbumGrid({
     }
   }, [client, sortType, sortDirection, currentPage]);
 
-  const performSearch = useCallback(
+  const runSearch = useCallback(
     async (query: string) => {
       if (!query.trim()) {
         setSearchResults(null);
@@ -214,63 +200,37 @@ export const AlbumGrid = memo(function AlbumGrid({
 
         const uniqueAlbums = Array.from(albumMap.values());
         setSearchResults(uniqueAlbums);
-
-        const newUrls: Record<string, string> = { ...coverUrls };
-        const urlEntries = await Promise.all(
-          uniqueAlbums
-            .filter(
-              (album): album is Album & { coverArt: string } =>
-                !!album.coverArt && !newUrls[album.id],
-            )
-            .map(async (album) => {
-              const url = await client.getCoverArtUrlWithAuth(
-                album.coverArt,
-                300,
-              );
-              return [album.id, url] as const;
-            }),
-        );
-
-        for (const entry of urlEntries) {
-          newUrls[entry[0]] = entry[1];
-        }
-        setCoverUrls(newUrls);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed");
       } finally {
         setIsSearching(false);
       }
     },
-    [client, coverUrls],
+    [client],
   );
+
+  const debouncedSearch = useDebouncedCallback(runSearch, SEARCH_DEBOUNCE_MS);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const query = e.target.value;
       setSearchQuery(query);
 
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
       if (!query.trim()) {
         setSearchResults(null);
+        setIsSearching(false);
         return;
       }
 
-      searchTimeoutRef.current = setTimeout(() => {
-        performSearch(query);
-      }, 300);
+      debouncedSearch(query);
     },
-    [performSearch],
+    [debouncedSearch],
   );
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
     setSearchResults(null);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    setIsSearching(false);
   }, []);
 
   useEffect(() => {
@@ -280,14 +240,6 @@ export const AlbumGrid = memo(function AlbumGrid({
   useEffect(() => {
     fetchTotalPages();
   }, [fetchTotalPages]);
-
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
 
   function toggleDirection() {
     setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
@@ -309,11 +261,20 @@ export const AlbumGrid = memo(function AlbumGrid({
   }
 
   const displayAlbums = searchResults !== null ? searchResults : albums;
-  const showSearchLoading = isSearching && searchQuery.trim();
+  const showSearchLoading = isSearching && Boolean(searchQuery.trim());
+
+  const coverArtEntries = useMemo(
+    () =>
+      displayAlbums
+        .filter((a): a is Album & { coverArt: string } => Boolean(a.coverArt))
+        .map((a) => ({ key: a.id, coverArtId: a.coverArt })),
+    [displayAlbums],
+  );
+
+  const coverUrls = useCoverArtUrls(client, coverArtEntries, 300);
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Sticky search/sort header */}
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 bg-zinc-950 pb-4">
         <div className="relative max-w-xs flex-1">
           <input
@@ -328,14 +289,15 @@ export const AlbumGrid = memo(function AlbumGrid({
             aria-label="Search"
           />
           {searchQuery && (
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="icon-sm"
               onClick={clearSearch}
-              className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-zinc-300"
               title="Clear search"
+              className="absolute top-1/2 right-2 -translate-y-1/2"
             >
               <X className="h-4 w-4" aria-label="Clear" />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -359,11 +321,12 @@ export const AlbumGrid = memo(function AlbumGrid({
             ))}
           </select>
 
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={toggleDirection}
-            className="flex min-w-30 cursor-pointer items-center justify-between gap-1.5 rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1 text-sm text-zinc-400 transition-colors hover:border-zinc-700"
             title={sortDirection === "desc" ? "Descending" : "Ascending"}
+            className="min-w-30 justify-between border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900"
           >
             {sortDirection === "desc" ? (
               <>
@@ -382,23 +345,36 @@ export const AlbumGrid = memo(function AlbumGrid({
                 />
               </>
             )}
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onOpenSettings}
-            className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-1.75 transition-colors hover:border-zinc-700"
             title="Settings"
+            className="border-zinc-800 bg-zinc-900 px-2 py-1.75 hover:border-zinc-700 hover:bg-zinc-900"
           >
             <Settings
               className="h-3.5 w-3.5 text-zinc-400"
               aria-label="Settings"
             />
-          </button>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onDisconnect}
+            title="Disconnect from server"
+            className="border-zinc-800 bg-zinc-900 px-2 py-1.75 hover:border-zinc-700 hover:bg-zinc-900"
+          >
+            <LogOut
+              className="h-3.5 w-3.5 text-zinc-400"
+              aria-label="Disconnect"
+            />
+          </Button>
         </div>
       </div>
 
-      {/* Scrollable album grid */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
@@ -417,7 +393,7 @@ export const AlbumGrid = memo(function AlbumGrid({
             {searchQuery ? "No results found" : "No albums found"}
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {displayAlbums.map((album) => (
               <AlbumCard
                 key={album.id}
@@ -430,29 +406,28 @@ export const AlbumGrid = memo(function AlbumGrid({
         )}
       </div>
 
-      {/* Sticky pagination footer */}
       {searchResults === null && (
         <div className="sticky bottom-0 z-10 flex items-center justify-center gap-4 pt-4">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={goToPreviousPage}
             disabled={currentPage === 0}
-            className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
           >
             Previous
-          </button>
+          </Button>
           <span className="text-sm text-zinc-500">
             Page {currentPage + 1}
             {totalPages !== null ? ` of ${totalPages}` : ""}
           </span>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={goToNextPage}
             disabled={!hasMore}
-            className="cursor-pointer rounded-sm border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
           >
             Next
-          </button>
+          </Button>
         </div>
       )}
     </div>

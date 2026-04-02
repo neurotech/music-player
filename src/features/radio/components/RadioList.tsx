@@ -8,9 +8,21 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useState } from "react";
-import { player } from "../lib/player";
-import type { InternetRadioStation, SubsonicClient } from "../lib/subsonic";
+import {
+  type FormEvent,
+  type MouseEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import { Button } from "@/components/Button";
+import { formInputClassName } from "@/components/Input";
+import { Modal } from "@/components/Modal";
+import { cn } from "@/lib/cn";
+import { player } from "@/features/player/lib/player";
+import type { SubsonicClient } from "@/lib/subsonic-client";
+import type { InternetRadioStation } from "@/types/subsonic";
 
 interface RadioListProps {
   client: SubsonicClient;
@@ -63,7 +75,7 @@ const RadioModal = memo(function RadioModal({
     }
   }, [isOpen, station]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.streamUrl.trim()) {
       setError("Name and Stream URL are required");
@@ -76,22 +88,24 @@ const RadioModal = memo(function RadioModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
+      aria-labelledby="radio-form-title"
+    >
       <div className="w-full max-w-md rounded-sm border border-zinc-700 bg-zinc-900 p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-medium text-lg text-zinc-200">
+          <h3
+            id="radio-form-title"
+            className="font-medium text-lg text-zinc-200"
+          >
             {station ? "Edit Station" : "Add Station"}
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300"
-          >
+          <Button variant="link" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -105,7 +119,10 @@ const RadioModal = memo(function RadioModal({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, name: e.target.value }))
               }
-              className="w-full rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+              className={cn(
+                formInputClassName,
+                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
+              )}
               placeholder="Station name"
             />
           </div>
@@ -123,7 +140,10 @@ const RadioModal = memo(function RadioModal({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, streamUrl: e.target.value }))
               }
-              className="w-full rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+              className={cn(
+                formInputClassName,
+                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
+              )}
               placeholder="https://stream.example.com/radio"
             />
           </div>
@@ -144,31 +164,31 @@ const RadioModal = memo(function RadioModal({
                   homePageUrl: e.target.value,
                 }))
               }
-              className="w-full rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none"
+              className={cn(
+                formInputClassName,
+                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
+              )}
               placeholder="https://example.com"
             />
           </div>
           {error && <p className="text-red-400 text-sm">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="lg"
               onClick={onClose}
               disabled={saving}
-              className="rounded-sm border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-700 disabled:opacity-50"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 px-4 py-2 font-semibold text-sm shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80 disabled:cursor-not-allowed disabled:bg-zinc-900/70 disabled:from-zinc-800/50 disabled:to-zinc-800 disabled:text-zinc-500"
-            >
+            </Button>
+            <Button type="submit" size="lg" disabled={saving}>
               {saving ? "Saving..." : station ? "Update" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 });
 
@@ -187,38 +207,46 @@ const DeleteConfirmModal = memo(function DeleteConfirmModal({
   onConfirm,
   deleting,
 }: DeleteConfirmModalProps) {
-  if (!isOpen || !station) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <Modal
+      isOpen={isOpen && station !== null}
+      onClose={onClose}
+      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
+      aria-labelledby="delete-radio-station-title"
+    >
       <div className="w-full max-w-sm rounded-sm border border-zinc-700 bg-zinc-900 p-6">
-        <h3 className="mb-2 font-medium text-lg text-zinc-200">
+        <h3
+          id="delete-radio-station-title"
+          className="mb-2 font-medium text-lg text-zinc-200"
+        >
           Delete Station
         </h3>
         <p className="mb-4 text-sm text-zinc-400">
-          Are you sure you want to delete "{station.name}"? This action cannot
-          be undone.
+          Are you sure you want to delete &quot;{station?.name}&quot;? This
+          action cannot be undone.
         </p>
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="lg"
             onClick={onClose}
             disabled={deleting}
-            className="rounded-sm border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-700 disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="danger"
+            size="lg"
             onClick={onConfirm}
             disabled={deleting}
-            className="rounded-sm bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-500 disabled:opacity-50"
           >
             {deleting ? "Deleting..." : "Delete"}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 });
 
@@ -234,7 +262,7 @@ const RadioCard = memo(function RadioCard({
   }, [onPlay, station]);
 
   const handleEdit = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       e.stopPropagation();
       onEdit(station);
     },
@@ -242,7 +270,7 @@ const RadioCard = memo(function RadioCard({
   );
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       e.stopPropagation();
       onDelete(station);
     },
@@ -268,7 +296,7 @@ const RadioCard = memo(function RadioCard({
       >
         <Radio className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1 h-full flex flex-col justify-between">
+      <div className="flex h-full min-w-0 flex-1 flex-col justify-between">
         <h3
           className={`truncate font-medium text-sm ${
             isPlaying
@@ -306,22 +334,24 @@ const RadioCard = memo(function RadioCard({
           </>
         ) : (
           <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={handleEdit}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300"
               title="Edit station"
+              className="text-zinc-500"
             >
               <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={handleDelete}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-red-400"
               title="Delete station"
+              className="text-zinc-500 hover:text-red-400"
             >
               <Trash2 className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -484,14 +514,10 @@ export const RadioList = memo(function RadioList({ client }: RadioListProps) {
           <p className="text-center text-sm text-zinc-500">
             No radio stations configured.
           </p>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 px-4 py-2 font-semibold text-sm shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80"
-          >
+          <Button size="lg" onClick={handleOpenCreate}>
             <Plus className="h-4 w-4" />
             Add Station
-          </button>
+          </Button>
         </div>
         <RadioModal
           isOpen={modalOpen}
@@ -515,25 +541,20 @@ export const RadioList = memo(function RadioList({ client }: RadioListProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 rounded-sm border border-zinc-900 bg-indigo-600 bg-linear-to-b from-indigo-400/60 to-indigo-800 px-3 py-1.5 font-semibold text-sm shadow-[0_1px_rgba(255,255,255,0.2)_inset,0_1px_1px_rgba(0,0,0,0.1)] transition-colors hover:from-indigo-400/90 hover:to-indigo-800/80"
-          >
+          <Button onClick={handleOpenCreate}>
             <Plus className="h-4 w-4" />
             Add
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => fetchStations(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
             />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
