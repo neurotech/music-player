@@ -326,6 +326,18 @@ class AudioPlayer {
     this.audio.currentTime = time;
   }
 
+  skipForward(seconds: number) {
+    if (!this.audio.src) return;
+    const duration = this.audio.duration || 0;
+    const target = this.audio.currentTime + seconds;
+    this.audio.currentTime = duration > 0 ? Math.min(target, duration) : target;
+  }
+
+  skipBackward(seconds: number) {
+    if (!this.audio.src) return;
+    this.audio.currentTime = Math.max(0, this.audio.currentTime - seconds);
+  }
+
   setVolume(volume: number) {
     this.state.volume = Math.max(0, Math.min(1, volume));
     this.audio.volume = this.state.volume;

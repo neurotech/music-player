@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { player } from "@/features/player/lib/player";
 
 const VOLUME_STEP = 0.1;
+const SKIP_STEP_SECONDS = 10;
 
 export function useAppGlobalShortcuts(
   navigateToAlbum: (albumId: string) => void,
@@ -19,6 +20,8 @@ export function useAppGlobalShortcuts(
     const PLAY_PAUSE_SHORTCUT = `${OS_PREFIX}Home`;
     const VOLUME_UP_SHORTCUT = `${OS_PREFIX}ArrowUp`;
     const VOLUME_DOWN_SHORTCUT = `${OS_PREFIX}ArrowDown`;
+    const SKIP_FORWARD_SHORTCUT = `${OS_PREFIX}ArrowRight`;
+    const SKIP_BACKWARD_SHORTCUT = `${OS_PREFIX}ArrowLeft`;
     const SEARCH_SHORTCUT = `${OS_PREFIX}KeyL`;
     const RANDOM_SONG_SHORTCUT = `${OS_PREFIX}Backspace`;
     const IMMERSIVE_SHORTCUT = `${OS_PREFIX}Backslash`;
@@ -30,6 +33,8 @@ export function useAppGlobalShortcuts(
         await unregister(PLAY_PAUSE_SHORTCUT).catch(() => {});
         await unregister(VOLUME_UP_SHORTCUT).catch(() => {});
         await unregister(VOLUME_DOWN_SHORTCUT).catch(() => {});
+        await unregister(SKIP_FORWARD_SHORTCUT).catch(() => {});
+        await unregister(SKIP_BACKWARD_SHORTCUT).catch(() => {});
         await unregister(SEARCH_SHORTCUT).catch(() => {});
         await unregister(RANDOM_SONG_SHORTCUT).catch(() => {});
         await unregister(IMMERSIVE_SHORTCUT).catch(() => {});
@@ -59,6 +64,16 @@ export function useAppGlobalShortcuts(
           if (event.state === "Pressed") {
             const currentVolume = player.getState().volume;
             player.setVolume(currentVolume - VOLUME_STEP);
+          }
+        });
+        await register(SKIP_FORWARD_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            player.skipForward(SKIP_STEP_SECONDS);
+          }
+        });
+        await register(SKIP_BACKWARD_SHORTCUT, (event) => {
+          if (event.state === "Pressed") {
+            player.skipBackward(SKIP_STEP_SECONDS);
           }
         });
         await register(SEARCH_SHORTCUT, (event) => {
@@ -94,6 +109,8 @@ export function useAppGlobalShortcuts(
       unregister(PLAY_PAUSE_SHORTCUT).catch(() => {});
       unregister(VOLUME_UP_SHORTCUT).catch(() => {});
       unregister(VOLUME_DOWN_SHORTCUT).catch(() => {});
+      unregister(SKIP_FORWARD_SHORTCUT).catch(() => {});
+      unregister(SKIP_BACKWARD_SHORTCUT).catch(() => {});
       unregister(SEARCH_SHORTCUT).catch(() => {});
       unregister(RANDOM_SONG_SHORTCUT).catch(() => {});
       unregister(IMMERSIVE_SHORTCUT).catch(() => {});
