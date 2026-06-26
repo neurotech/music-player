@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Music Player",
@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http: https:; img-src 'self' asset: http://asset.localhost http: https: data:; media-src 'self' asset: http://asset.localhost http: https: blob:; object-src 'none'; frame-src 'none'; base-uri 'none'"
     }
   },
   "bundle": {

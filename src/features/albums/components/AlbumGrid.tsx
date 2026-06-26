@@ -84,6 +84,47 @@ const SORT_OPTIONS: SortConfig[] = [
 
 const PAGE_SIZE = 50;
 
+interface AlbumPaginationProps {
+  currentPage: number;
+  totalPages: number | null;
+  hasMore: boolean;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
+}
+
+function AlbumPagination({
+  currentPage,
+  totalPages,
+  hasMore,
+  onPreviousPage,
+  onNextPage,
+}: AlbumPaginationProps) {
+  return (
+    <div className="flex items-center justify-center gap-4 pt-6 pb-2">
+      <Button
+        variant="secondary"
+        onClick={onPreviousPage}
+        disabled={currentPage === 0}
+        className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
+      >
+        Previous
+      </Button>
+      <span className="text-sm text-zinc-500">
+        Page {currentPage + 1}
+        {totalPages !== null ? ` of ${totalPages}` : ""}
+      </span>
+      <Button
+        variant="secondary"
+        onClick={onNextPage}
+        disabled={!hasMore}
+        className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
+      >
+        Next
+      </Button>
+    </div>
+  );
+}
+
 export const AlbumGrid = memo(function AlbumGrid({
   client,
   onAlbumClick,
@@ -101,74 +142,136 @@ export const AlbumGrid = memo(function AlbumGrid({
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState<number | null>(null);
-  const totalPagesCacheRef = useRef<Map<AlbumListType, number>>(new Map());
+  const albumCountCacheRef = useRef<Map<AlbumListType, number>>(new Map());
+  const albumListRequestIdRef = useRef(0);
+  const totalPagesRequestIdRef = useRef(0);
+  const searchRequestIdRef = useRef(0);
 
   // Reset cached page counts when the connected server/client instance changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency on `client` identity
   useEffect(() => {
-    totalPagesCacheRef.current.clear();
+    albumCountCacheRef.current.clear();
+    albumListRequestIdRef.current++;
+    totalPagesRequestIdRef.current++;
+    searchRequestIdRef.current++;
+    setTotalPages(null);
   }, [client]);
 
-  const fetchTotalPages = useCallback(async () => {
-    const cached = totalPagesCacheRef.current.get(sortType);
-    if (cached !== undefined) {
-      setTotalPages(cached);
-      return;
+  const fetchAlbumCount = useCallback(async (): Promise<number> => {
+    const cached = albumCountCacheRef.current.get(sortType);
+    if (cached !== undefined) return cached;
+
+    async function hasAlbumAtOffset(offset: number): Promise<boolean> {
+      const result = await client.getAlbumList(sortType, 1, offset);
+      return result.length > 0;
     }
 
     let low = 0;
-    let high = 100;
+    let high = PAGE_SIZE;
 
-    while (
-      await client
-        .getAlbumList(sortType, 1, high * PAGE_SIZE)
-        .then((r) => r.length > 0)
-    ) {
-      low = high;
+    while (await hasAlbumAtOffset(high)) {
+      low = high + 1;
       high *= 2;
     }
 
     while (low < high) {
       const mid = Math.floor((low + high) / 2);
-      const result = await client.getAlbumList(sortType, 1, mid * PAGE_SIZE);
-      if (result.length > 0) {
+      if (await hasAlbumAtOffset(mid)) {
         low = mid + 1;
       } else {
         high = mid;
       }
     }
 
-    totalPagesCacheRef.current.set(sortType, low);
-    setTotalPages(low);
+    albumCountCacheRef.current.set(sortType, low);
+    return low;
   }, [client, sortType]);
 
+  const fetchTotalPages = useCallback(async () => {
+    const requestId = ++totalPagesRequestIdRef.current;
+
+    try {
+      const albumCount = await fetchAlbumCount();
+      if (requestId === totalPagesRequestIdRef.current) {
+        setTotalPages(Math.max(1, Math.ceil(albumCount / PAGE_SIZE)));
+      }
+    } catch (err) {
+      console.warn("Failed to fetch album count:", err);
+      if (requestId === totalPagesRequestIdRef.current) {
+        setTotalPages(null);
+      }
+    }
+  }, [fetchAlbumCount]);
+
   const fetchAlbums = useCallback(async () => {
+    const requestId = ++albumListRequestIdRef.current;
+
     try {
       setLoading(true);
       setError(null);
-      const offset = currentPage * PAGE_SIZE;
-      const albumList = await client.getAlbumList(sortType, PAGE_SIZE, offset);
 
-      setHasMore(albumList.length === PAGE_SIZE);
+      let albumList: Album[];
+      let nextHasMore: boolean;
 
-      const sortedAlbums =
-        sortDirection === "asc" ? [...albumList].reverse() : albumList;
+      if (sortDirection === "asc") {
+        let albumCount: number | null = null;
 
-      setAlbums(sortedAlbums);
+        try {
+          albumCount = await fetchAlbumCount();
+        } catch (err) {
+          console.warn("Failed to fetch album count for ascending sort:", err);
+        }
+
+        if (albumCount !== null) {
+          const remaining = albumCount - currentPage * PAGE_SIZE;
+          const pageSize = Math.min(PAGE_SIZE, Math.max(0, remaining));
+          const offset = Math.max(0, albumCount - (currentPage + 1) * PAGE_SIZE);
+          albumList =
+            pageSize > 0
+              ? await client.getAlbumList(sortType, pageSize, offset)
+              : [];
+          albumList = [...albumList].reverse();
+          nextHasMore = currentPage < Math.ceil(albumCount / PAGE_SIZE) - 1;
+        } else {
+          const offset = currentPage * PAGE_SIZE;
+          albumList = await client.getAlbumList(sortType, PAGE_SIZE, offset);
+          albumList = [...albumList].reverse();
+          nextHasMore = albumList.length === PAGE_SIZE;
+        }
+      } else {
+        const offset = currentPage * PAGE_SIZE;
+        albumList = await client.getAlbumList(sortType, PAGE_SIZE, offset);
+        const albumCount = albumCountCacheRef.current.get(sortType);
+        nextHasMore =
+          albumCount !== undefined
+            ? offset + albumList.length < albumCount
+            : albumList.length === PAGE_SIZE;
+      }
+
+      if (requestId !== albumListRequestIdRef.current) return;
+
+      setHasMore(nextHasMore);
+      setAlbums(albumList);
     } catch (err) {
+      if (requestId !== albumListRequestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to fetch albums");
     } finally {
-      setLoading(false);
+      if (requestId === albumListRequestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [client, sortType, sortDirection, currentPage]);
+  }, [client, sortType, sortDirection, currentPage, fetchAlbumCount]);
 
   const runSearch = useCallback(
-    async (query: string) => {
+    async (query: string, requestId: number) => {
       if (!query.trim()) {
+        if (requestId !== searchRequestIdRef.current) return;
         setSearchResults(null);
         setIsSearching(false);
         return;
       }
+
+      if (requestId !== searchRequestIdRef.current) return;
 
       try {
         setIsSearching(true);
@@ -199,11 +302,15 @@ export const AlbumGrid = memo(function AlbumGrid({
         }
 
         const uniqueAlbums = Array.from(albumMap.values());
+        if (requestId !== searchRequestIdRef.current) return;
         setSearchResults(uniqueAlbums);
       } catch (err) {
+        if (requestId !== searchRequestIdRef.current) return;
         setError(err instanceof Error ? err.message : "Search failed");
       } finally {
-        setIsSearching(false);
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
       }
     },
     [client],
@@ -214,6 +321,7 @@ export const AlbumGrid = memo(function AlbumGrid({
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const query = e.target.value;
+      const requestId = ++searchRequestIdRef.current;
       setSearchQuery(query);
 
       if (!query.trim()) {
@@ -222,12 +330,13 @@ export const AlbumGrid = memo(function AlbumGrid({
         return;
       }
 
-      debouncedSearch(query);
+      debouncedSearch(query, requestId);
     },
     [debouncedSearch],
   );
 
   const clearSearch = useCallback(() => {
+    searchRequestIdRef.current++;
     setSearchQuery("");
     setSearchResults(null);
     setIsSearching(false);
@@ -262,6 +371,8 @@ export const AlbumGrid = memo(function AlbumGrid({
 
   const displayAlbums = searchResults !== null ? searchResults : albums;
   const showSearchLoading = isSearching && Boolean(searchQuery.trim());
+  const showPagination =
+    searchResults === null && !loading && !error && !showSearchLoading;
 
   const coverArtEntries = useMemo(
     () =>
@@ -404,32 +515,17 @@ export const AlbumGrid = memo(function AlbumGrid({
             ))}
           </div>
         )}
-      </div>
 
-      {searchResults === null && (
-        <div className="sticky bottom-0 z-10 flex items-center justify-center gap-4 pt-4">
-          <Button
-            variant="secondary"
-            onClick={goToPreviousPage}
-            disabled={currentPage === 0}
-            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-zinc-500">
-            Page {currentPage + 1}
-            {totalPages !== null ? ` of ${totalPages}` : ""}
-          </span>
-          <Button
-            variant="secondary"
-            onClick={goToNextPage}
-            disabled={!hasMore}
-            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
-          >
-            Next
-          </Button>
-        </div>
-      )}
+        {showPagination && (
+          <AlbumPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            hasMore={hasMore}
+            onPreviousPage={goToPreviousPage}
+            onNextPage={goToNextPage}
+          />
+        )}
+      </div>
     </div>
   );
 });

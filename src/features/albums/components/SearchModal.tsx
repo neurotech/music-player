@@ -49,6 +49,7 @@ export function SearchModal({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const searchRequestIdRef = useRef(0);
 
   const flattenedResults = useMemo(() => {
     const items: SearchItem[] = [];
@@ -99,15 +100,20 @@ export function SearchModal({
   );
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setResults(null);
-      setSelectedIndex(0);
-      const outer = requestAnimationFrame(() => {
-        requestAnimationFrame(() => inputRef.current?.focus());
-      });
-      return () => cancelAnimationFrame(outer);
+    searchRequestIdRef.current++;
+    if (!isOpen) {
+      setIsSearching(false);
+      return;
     }
+
+    setQuery("");
+    setResults(null);
+    setSelectedIndex(0);
+    setIsSearching(false);
+    const outer = requestAnimationFrame(() => {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    });
+    return () => cancelAnimationFrame(outer);
   }, [isOpen]);
 
   useEffect(() => {
@@ -122,23 +128,31 @@ export function SearchModal({
   }, [selectedIndex]);
 
   const runSearch = useCallback(
-    async (searchQuery: string) => {
+    async (searchQuery: string, requestId: number) => {
       if (!searchQuery.trim()) {
+        if (requestId !== searchRequestIdRef.current) return;
         setResults(null);
         setSelectedIndex(0);
+        setIsSearching(false);
         return;
       }
+
+      if (requestId !== searchRequestIdRef.current) return;
 
       setIsSearching(true);
       try {
         const searchResults = await client.search(searchQuery);
+        if (requestId !== searchRequestIdRef.current) return;
         setResults(searchResults);
         setSelectedIndex(0);
       } catch (err) {
+        if (requestId !== searchRequestIdRef.current) return;
         console.error("Search failed:", err);
         setResults(null);
       } finally {
-        setIsSearching(false);
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
       }
     },
     [client],
@@ -149,15 +163,17 @@ export function SearchModal({
   const handleQueryChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const newQuery = e.target.value;
+      const requestId = ++searchRequestIdRef.current;
       setQuery(newQuery);
 
       if (!newQuery.trim()) {
         setResults(null);
         setSelectedIndex(0);
+        setIsSearching(false);
         return;
       }
 
-      debouncedSearch(newQuery);
+      debouncedSearch(newQuery, requestId);
     },
     [debouncedSearch],
   );

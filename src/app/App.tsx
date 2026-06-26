@@ -10,7 +10,6 @@ import {
   saveCredentials,
 } from "@/features/auth/lib/credentials";
 import { ImmersiveNowPlaying } from "@/features/player/components/immersive/ImmersiveNowPlaying";
-import { NowPlayingHeader } from "@/features/player/components/NowPlayingHeader";
 import { PlayerBar } from "@/features/player/components/PlayerBar";
 import { QueueSidebar } from "@/features/player/components/QueueSidebar";
 import { player } from "@/features/player/lib/player";
@@ -157,40 +156,29 @@ function App() {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-      {client && <NowPlayingHeader client={client} onAlbumClick={navigateTo} />}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden transition-all duration-300">
-          <div className="mx-auto flex w-full max-w-7xl flex-1 animate-fade-in flex-col overflow-hidden p-4 pb-16">
+          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 animate-fade-in flex-col overflow-hidden p-4">
             {client ? (
               <>
-                {activeView === "radio" ? (
-                  <RadioList client={client} />
-                ) : selectedAlbumId ? (
-                  <AlbumView
-                    albumId={selectedAlbumId}
-                    client={client}
-                    onBack={() => navigateTo(null)}
-                  />
-                ) : (
-                  <AlbumGrid
-                    client={client}
-                    onAlbumClick={navigateTo}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                    onDisconnect={handleDisconnect}
-                  />
-                )}
-                <PlayerBar
-                  onQueueClick={() => {
-                    const newState = !isQueueOpen;
-                    setIsQueueOpen(newState);
-                    persistIsQueueOpen(newState);
-                  }}
-                  isQueueOpen={isQueueOpen}
-                  activeView={activeView}
-                  onViewChange={handleViewChange}
-                  isImmersiveOpen={isImmersiveNowPlayingOpen}
-                  onImmersiveToggle={toggleImmersiveNowPlaying}
-                />
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  {activeView === "radio" ? (
+                    <RadioList client={client} />
+                  ) : selectedAlbumId ? (
+                    <AlbumView
+                      albumId={selectedAlbumId}
+                      client={client}
+                      onBack={() => navigateTo(null)}
+                    />
+                  ) : (
+                    <AlbumGrid
+                      client={client}
+                      onAlbumClick={navigateTo}
+                      onOpenSettings={() => setIsSettingsOpen(true)}
+                      onDisconnect={handleDisconnect}
+                    />
+                  )}
+                </div>
                 <SettingsModal
                   isOpen={isSettingsOpen}
                   onClose={() => setIsSettingsOpen(false)}
@@ -213,6 +201,22 @@ function App() {
               </div>
             )}
           </div>
+          {client && (
+            <PlayerBar
+              client={client}
+              onQueueClick={() => {
+                const newState = !isQueueOpen;
+                setIsQueueOpen(newState);
+                persistIsQueueOpen(newState);
+              }}
+              isQueueOpen={isQueueOpen}
+              activeView={activeView}
+              onViewChange={handleViewChange}
+              isImmersiveOpen={isImmersiveNowPlayingOpen}
+              onImmersiveToggle={toggleImmersiveNowPlaying}
+              onAlbumClick={navigateTo}
+            />
+          )}
         </div>
         {client && (
           <QueueSidebar

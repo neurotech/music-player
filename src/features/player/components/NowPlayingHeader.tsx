@@ -18,8 +18,7 @@ export function NowPlayingHeader({
 
   const coverArtId = state.currentTrack?.coverArt ?? null;
   const coverEntries = useMemo(
-    () =>
-      coverArtId ? [{ key: "np", coverArtId }] : [],
+    () => (coverArtId ? [{ key: "np", coverArtId }] : []),
     [coverArtId],
   );
   const coverMap = useCoverArtUrls(client, coverEntries, 100);
@@ -36,7 +35,7 @@ export function NowPlayingHeader({
         const id = state.currentTrack?.albumId;
         if (id) onAlbumClick?.(id);
       }}
-      className="group sticky top-0 z-20 flex w-full min-w-0 shrink-0 cursor-pointer items-center gap-3 border-zinc-800 border-b bg-zinc-900 px-4 py-2 text-left transition-colors hover:bg-zinc-800"
+      className="group flex w-full min-w-0 shrink-0 cursor-pointer items-center gap-3 border-zinc-800 border-b bg-zinc-900 p-3 text-left transition-colors hover:bg-zinc-800"
     >
       <CoverArt
         url={coverUrl}

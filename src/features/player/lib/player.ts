@@ -37,6 +37,8 @@ class AudioPlayer {
   private lastTimeUpdate = 0;
   private timeUpdateRafId: number | null = null;
   private lastStateSave = 0;
+  private playbackStateWrite = Promise.resolve();
+  private suppressNextPauseSave = false;
 
   constructor() {
     this.audio = new Audio();
@@ -58,7 +60,7 @@ class AudioPlayer {
 
       if (now - this.lastStateSave >= 5000) {
         this.lastStateSave = now;
-        this.savePlaybackState();
+        void this.savePlaybackState();
       }
     });
 
@@ -75,14 +77,18 @@ class AudioPlayer {
       this.state.isPlaying = true;
       this.notify();
       this.updateDiscordActivity();
-      this.savePlaybackState();
+      void this.savePlaybackState();
     });
 
     this.audio.addEventListener("pause", () => {
       this.state.isPlaying = false;
       this.notify();
       this.clearDiscordActivity();
-      this.savePlaybackState();
+      if (this.suppressNextPauseSave) {
+        this.suppressNextPauseSave = false;
+        return;
+      }
+      void this.savePlaybackState();
     });
 
     getCurrentWindow().onCloseRequested(async () => {
@@ -359,18 +365,27 @@ class AudioPlayer {
   }
 
   async savePlaybackState(): Promise<void> {
-    if (!this.state.currentTrack) {
-      await removeStoreValue(PLAYBACK_STATE_KEY);
-      return;
-    }
+    const currentTrack = this.state.currentTrack;
+    const persistedState: PersistedPlayerState | null = currentTrack
+      ? {
+          currentTrack,
+          queue: this.state.queue,
+          queueIndex: this.state.queueIndex,
+          currentTime: this.audio.currentTime || 0,
+        }
+      : null;
 
-    const persistedState: PersistedPlayerState = {
-      currentTrack: this.state.currentTrack,
-      queue: this.state.queue,
-      queueIndex: this.state.queueIndex,
-      currentTime: this.audio.currentTime || 0,
-    };
-    await setStoreValue(PLAYBACK_STATE_KEY, persistedState);
+    this.playbackStateWrite = this.playbackStateWrite
+      .catch(() => {})
+      .then(async () => {
+        if (persistedState) {
+          await setStoreValue(PLAYBACK_STATE_KEY, persistedState);
+        } else {
+          await removeStoreValue(PLAYBACK_STATE_KEY);
+        }
+      });
+
+    await this.playbackStateWrite;
   }
 
   private async loadPlaybackState(): Promise<PersistedPlayerState | null> {
@@ -394,18 +409,43 @@ class AudioPlayer {
       );
       this.audio.src = streamUrl;
 
-      const seekTime = persisted.currentTime;
-      const handleCanPlay = () => {
-        this.audio.currentTime = seekTime;
-        this.state.currentTime = seekTime;
-        this.audio.pause();
-        this.state.isPlaying = false;
-        this.notify();
-        this.audio.removeEventListener("canplay", handleCanPlay);
-      };
-      this.audio.addEventListener("canplay", handleCanPlay);
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          this.audio.removeEventListener("loadedmetadata", handleReady);
+          this.audio.removeEventListener("canplay", handleReady);
+          this.audio.removeEventListener("error", handleError);
+        };
+        const handleReady = () => {
+          cleanup();
+          resolve();
+        };
+        const handleError = () => {
+          cleanup();
+          reject(new Error("Failed to load restored track"));
+        };
 
-      await this.audio.load();
+        this.audio.addEventListener("loadedmetadata", handleReady, {
+          once: true,
+        });
+        this.audio.addEventListener("canplay", handleReady, { once: true });
+        this.audio.addEventListener("error", handleError, { once: true });
+
+        this.audio.load();
+      });
+
+      const duration = Number.isFinite(this.audio.duration)
+        ? this.audio.duration
+        : 0;
+      const seekTime =
+        duration > 0
+          ? Math.min(Math.max(0, persisted.currentTime), duration)
+          : Math.max(0, persisted.currentTime);
+      this.audio.currentTime = seekTime;
+      this.state.currentTime = seekTime;
+      this.state.duration = duration;
+      this.audio.pause();
+      this.state.isPlaying = false;
+      this.notify();
     } catch (err) {
       console.warn("Failed to restore playback state:", err);
       this.state.currentTrack = null;
@@ -416,8 +456,6 @@ class AudioPlayer {
   }
 
   stop() {
-    this.audio.pause();
-    this.audio.src = "";
     this.state.currentTrack = null;
     this.state.currentRadio = null;
     this.state.isPlaying = false;
@@ -425,9 +463,12 @@ class AudioPlayer {
     this.state.duration = 0;
     this.state.queue = [];
     this.state.queueIndex = -1;
+    this.suppressNextPauseSave = !this.audio.paused;
+    this.audio.pause();
+    this.audio.src = "";
     this.notify();
     this.clearDiscordActivity();
-    this.savePlaybackState();
+    void this.savePlaybackState();
   }
 
   async playRandomSong(): Promise<Song | null> {

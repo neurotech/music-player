@@ -41,28 +41,45 @@ interface RandomSongsResponse {
 
 function generateSalt(length = 8): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const randomValues = new Uint32Array(length);
+  let hasCryptoValues = false;
+
+  try {
+    globalThis.crypto.getRandomValues(randomValues);
+    hasCryptoValues = true;
+  } catch {
+    hasCryptoValues = false;
+  }
+
   let salt = "";
   for (let i = 0; i < length; i++) {
-    salt += chars.charAt(Math.floor(Math.random() * chars.length));
+    const value = hasCryptoValues
+      ? randomValues[i] % chars.length
+      : Math.floor(Math.random() * chars.length);
+    salt += chars.charAt(value);
   }
   return salt;
 }
 
 async function md5(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest("MD5", msgBuffer).catch(() => {
-    return null;
-  });
+  let hashBuffer: ArrayBuffer | null = null;
+
+  try {
+    hashBuffer = await globalThis.crypto.subtle.digest("MD5", msgBuffer);
+  } catch {
+    hashBuffer = null;
+  }
 
   if (hashBuffer) {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
-  return md5Fallback(message);
+  return md5Fallback(msgBuffer);
 }
 
-function md5Fallback(string: string): string {
+function md5Fallback(bytes: Uint8Array): string {
   function rotateLeft(value: number, shift: number) {
     return (value << shift) | (value >>> (32 - shift));
   }
@@ -146,21 +163,21 @@ function md5Fallback(string: string): string {
     return addUnsigned(rotateLeft(a, s), b);
   }
 
-  function convertToWordArray(str: string) {
-    const wordCount = ((str.length + 8) >> 6) + 1;
+  function convertToWordArray(input: Uint8Array) {
+    const wordCount = ((input.length + 8) >> 6) + 1;
     const wordArray = new Array(wordCount * 16).fill(0);
     let bytePos = 0;
     let byteCount = 0;
-    while (byteCount < str.length) {
+    while (byteCount < input.length) {
       const wordPos = (byteCount - (byteCount % 4)) / 4;
       bytePos = (byteCount % 4) * 8;
-      wordArray[wordPos] |= str.charCodeAt(byteCount) << bytePos;
+      wordArray[wordPos] |= input[byteCount] << bytePos;
       byteCount++;
     }
     const wordPos = (byteCount - (byteCount % 4)) / 4;
     bytePos = (byteCount % 4) * 8;
     wordArray[wordPos] |= 0x80 << bytePos;
-    wordArray[wordCount * 16 - 2] = str.length * 8;
+    wordArray[wordCount * 16 - 2] = input.length * 8;
     return wordArray;
   }
 
@@ -173,7 +190,7 @@ function md5Fallback(string: string): string {
     return hex;
   }
 
-  const x = convertToWordArray(string);
+  const x = convertToWordArray(bytes);
   let a = 0x67452301;
   let b = 0xefcdab89;
   let c = 0x98badcfe;

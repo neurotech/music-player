@@ -1,5 +1,5 @@
 import { ChevronLeft, Play } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { CoverArt } from "@/components/CoverArt";
 import { usePlayerState } from "@/features/player/hooks/usePlayerState";
@@ -131,6 +131,7 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const playerState = usePlayerState();
+  const albumRequestIdRef = useRef(0);
 
   const coverEntries = useMemo(
     () =>
@@ -143,20 +144,29 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const coverUrl = album?.coverArt ? (coverMap.view ?? null) : null;
 
   useEffect(() => {
+    const requestId = ++albumRequestIdRef.current;
+
     async function fetchAlbum() {
       try {
         setLoading(true);
         setError(null);
         const albumData = await client.getAlbum(albumId);
+        if (requestId !== albumRequestIdRef.current) return;
         setAlbum(albumData);
       } catch (err) {
+        if (requestId !== albumRequestIdRef.current) return;
         setError(err instanceof Error ? err.message : "Failed to load album");
       } finally {
-        setLoading(false);
+        if (requestId === albumRequestIdRef.current) {
+          setLoading(false);
+        }
       }
     }
 
     fetchAlbum();
+    return () => {
+      albumRequestIdRef.current++;
+    };
   }, [albumId, client]);
 
   const handlePlayTrack = useCallback(
