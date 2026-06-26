@@ -1,4 +1,4 @@
-import { Radio, X } from "lucide-react";
+import { Radio, Shuffle, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -8,9 +8,9 @@ import { cn } from "@/lib/cn";
 import type { SubsonicClient } from "@/lib/subsonic-client";
 import { useCoverArtUrls } from "@/lib/useCoverArtUrls";
 import { usePlayerState } from "../../hooks/usePlayerState";
-import { ImmersiveVisualizerCanvas } from "./ImmersiveVisualizerCanvas";
+import { ImmersiveShaderBackground } from "./ImmersiveShaderBackground";
+import type { ImmersiveShader } from "./immersiveShaders";
 
-const DEFAULT_ACCENT: [number, number, number] = [0.35, 0.28, 0.52];
 const COVER_SIZE = 640;
 
 /** Auto-reveal timeline after play/pause or track change (ms). */
@@ -18,47 +18,11 @@ const META_FADE_IN_MS = 200;
 const META_HOLD_MS = 5000;
 const META_FADE_OUT_MS = 10000;
 const META_SEQUENCE_MS = META_FADE_IN_MS + META_HOLD_MS + META_FADE_OUT_MS;
+const SHADER_ROTATION_MS = 60000;
 
 interface ImmersiveNowPlayingProps {
   client: SubsonicClient;
   onClose: () => void;
-}
-
-function sampleAverageColorFromUrl(
-  url: string,
-): Promise<[number, number, number]> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const c = document.createElement("canvas");
-        c.width = 32;
-        c.height = 32;
-        const ctx = c.getContext("2d");
-        if (!ctx) {
-          resolve(DEFAULT_ACCENT);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, 32, 32);
-        const { data } = ctx.getImageData(0, 0, 32, 32);
-        let r = 0;
-        let g = 0;
-        let b = 0;
-        const n = (data.length / 4) | 0;
-        for (let i = 0; i < data.length; i += 4) {
-          r += data[i];
-          g += data[i + 1];
-          b += data[i + 2];
-        }
-        resolve([r / n / 255, g / n / 255, b / n / 255]);
-      } catch {
-        resolve(DEFAULT_ACCENT);
-      }
-    };
-    img.onerror = () => resolve(DEFAULT_ACCENT);
-    img.src = url;
-  });
 }
 
 export function ImmersiveNowPlaying({
@@ -66,14 +30,20 @@ export function ImmersiveNowPlaying({
   onClose,
 }: ImmersiveNowPlayingProps) {
   const state = usePlayerState();
-  const [accent, setAccent] =
-    useState<[number, number, number]>(DEFAULT_ACCENT);
   const [overlayHovered, setOverlayHovered] = useState(false);
   const [autoMetaOpacity, setAutoMetaOpacity] = useState(0);
+  const [manualShaderSeq, setManualShaderSeq] = useState(0);
+  const [currentShaderName, setCurrentShaderName] = useState<string | null>(
+    null,
+  );
   const metaSeqGen = useRef(0);
   const metaRaf = useRef(0);
 
   const playbackSignature = `${state.isPlaying ? 1 : 0}:${state.currentTrack?.id ?? ""}:${state.currentRadio?.id ?? ""}`;
+  const shaderSeed = state.currentTrack?.id ?? state.currentRadio?.id ?? "idle";
+  const hasPlayableSource = Boolean(state.currentTrack ?? state.currentRadio);
+  const shouldRotateShaders = state.isPlaying && hasPlayableSource;
+  const shaderRotationKey = shouldRotateShaders ? shaderSeed : null;
   const prevPlaybackSig = useRef<string | null>(null);
 
   useEffect(() => {
@@ -129,7 +99,21 @@ export function ImmersiveNowPlaying({
   const metaPointerEvents =
     overlayHovered || autoMetaOpacity > 0.02 ? "auto" : "none";
 
-  const seedKey = state.currentTrack?.id ?? state.currentRadio?.id ?? "idle";
+  useEffect(() => {
+    if (!shaderRotationKey) return;
+
+    const intervalId = window.setInterval(() => {
+      setManualShaderSeq((seq) => seq + 1);
+    }, SHADER_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [shaderRotationKey]);
+
+  const shaderChangeKey = `${shaderSeed}:${manualShaderSeq}`;
+
+  const onShaderChange = useCallback((shader: ImmersiveShader) => {
+    setCurrentShaderName(shader.name);
+  }, []);
 
   const coverArtId = state.currentTrack?.coverArt ?? null;
   const coverEntries = useMemo(
@@ -138,20 +122,6 @@ export function ImmersiveNowPlaying({
   );
   const coverMap = useCoverArtUrls(client, coverEntries, COVER_SIZE);
   const coverUrl = coverArtId ? (coverMap.im ?? null) : null;
-
-  useEffect(() => {
-    if (!coverUrl) {
-      setAccent(DEFAULT_ACCENT);
-      return;
-    }
-    let cancelled = false;
-    void sampleAverageColorFromUrl(coverUrl).then((rgb) => {
-      if (!cancelled) setAccent(rgb);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [coverUrl]);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -177,23 +147,19 @@ export function ImmersiveNowPlaying({
       onMouseEnter={() => setOverlayHovered(true)}
       onMouseLeave={() => setOverlayHovered(false)}
     >
-      <div className="absolute inset-0">
-        <ImmersiveVisualizerCanvas
-          className="h-full w-full"
-          seedKey={seedKey}
-          accentRgb={accent}
-        />
-      </div>
+      <ImmersiveShaderBackground
+        changeKey={shaderChangeKey}
+        onShaderChange={onShaderChange}
+      />
 
       <div
-        className="relative z-10 flex flex-1 flex-col justify-center px-8"
+        className="relative z-10 flex flex-1 flex-col justify-center"
         style={{
           opacity: effectiveMetaOpacity,
           pointerEvents: metaPointerEvents,
-          transition: overlayHovered ? "opacity 200ms ease-out" : undefined,
         }}
       >
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-8 text-center">
+        <div className="flex flex-col items-center gap-8 bg-black/55 py-8 text-center backdrop-blur-md">
           {state.currentRadio ? (
             <>
               <div className="flex items-center gap-3 text-indigo-300">
@@ -205,6 +171,11 @@ export function ImmersiveNowPlaying({
                   {state.currentRadio.name}
                 </h1>
                 <p className="text-lg text-zinc-400">Internet radio · LIVE</p>
+                {currentShaderName ? (
+                  <p className="text-shadow-sm text-sm text-zinc-500">
+                    Shader: {currentShaderName}
+                  </p>
+                ) : null}
               </div>
             </>
           ) : state.currentTrack ? (
@@ -218,15 +189,20 @@ export function ImmersiveNowPlaying({
                 imgProps={coverUrl ? { loading: "eager" } : undefined}
               />
               <div className="space-y-2">
-                <h1 className="text-balance font-semibold text-3xl tracking-tight sm:text-4xl">
+                <h1 className="text-balance font-semibold text-3xl text-shadow-sm tracking-tight sm:text-4xl">
                   {state.currentTrack.title}
                 </h1>
-                <p className="text-xl text-zinc-300">
+                <p className="text-shadow-sm text-xl text-zinc-300">
                   {state.currentTrack.artist}
                 </p>
-                <p className="text-lg text-zinc-500">
+                <p className="text-lg text-shadow-sm text-zinc-500">
                   {state.currentTrack.album}
                 </p>
+                {currentShaderName ? (
+                  <p className="pt-2 text-shadow-sm text-sm text-zinc-200">
+                    Shader: {currentShaderName}
+                  </p>
+                ) : null}
               </div>
             </>
           ) : (
@@ -235,8 +211,37 @@ export function ImmersiveNowPlaying({
                 Nothing playing
               </h1>
               <p className="text-zinc-500">Start a track or station</p>
+              {currentShaderName ? (
+                <p className="text-shadow-sm text-sm text-zinc-600">
+                  Shader: {currentShaderName}
+                </p>
+              ) : null}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute top-4 left-4 z-20">
+        <div
+          className={cn(
+            "transition-opacity duration-200",
+            overlayHovered
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0",
+          )}
+        >
+          <div className="animate-immersive-breathe">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setManualShaderSeq((seq) => seq + 1)}
+              className="rounded-full border border-zinc-700/60 bg-zinc-950/40 text-zinc-200 backdrop-blur-sm hover:bg-zinc-900/70"
+              aria-label="Change immersive shader"
+              title="Change shader"
+            >
+              <Shuffle className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </div>
 
