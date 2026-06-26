@@ -67,13 +67,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
-      aria-labelledby="settings-title"
-    >
-      <div className="mx-4 w-full max-w-sm">
+    <Modal isOpen={isOpen} onClose={onClose} aria-labelledby="settings-title">
+      <div className="w-full max-w-sm">
         <div className={panelClass}>
           <ModalHeader
             title="Settings"

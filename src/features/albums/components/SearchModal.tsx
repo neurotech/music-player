@@ -235,7 +235,7 @@ export function SearchModal({
       onKeyDown={handleModalKeyDown}
       aria-labelledby="search-title"
     >
-      <div className="mx-4 w-full max-w-lg">
+      <div className="w-full max-w-lg">
         <div className={panelClass}>
           <ModalHeader
             title="Search"

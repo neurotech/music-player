@@ -29,7 +29,7 @@ export function PlayerBar({
   const hasContent = Boolean(state.currentTrack || state.currentRadio);
 
   return (
-    <div className="shrink-0 border-zinc-800 border-t bg-zinc-900 shadow-[0_-1px_rgba(255,255,255,0.05)_inset]">
+    <div className="shrink-0 border-zinc-800 border-t bg-zinc-900">
       <div className="flex flex-col">
         {state.currentTrack && (
           <NowPlayingHeader client={client} onAlbumClick={onAlbumClick} />

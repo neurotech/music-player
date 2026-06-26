@@ -6,7 +6,6 @@ import {
   Radio,
   RefreshCw,
   Trash2,
-  X,
 } from "lucide-react";
 import {
   type FormEvent,
@@ -17,10 +16,13 @@ import {
   useState,
 } from "react";
 import { Button } from "@/components/Button";
-import { formInputClassName } from "@/components/Input";
+import { InlineAlert } from "@/components/InlineAlert";
+import { Input } from "@/components/Input";
 import { Modal } from "@/components/Modal";
-import { cn } from "@/lib/cn";
+import { ModalHeader } from "@/components/ModalHeader";
+import { panelClass } from "@/components/panel-styles";
 import { player } from "@/features/player/lib/player";
+import { cn } from "@/lib/cn";
 import type { SubsonicClient } from "@/lib/subsonic-client";
 import type { InternetRadioStation } from "@/types/subsonic";
 
@@ -89,104 +91,89 @@ const RadioModal = memo(function RadioModal({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
-      aria-labelledby="radio-form-title"
-    >
-      <div className="w-full max-w-md rounded-sm border border-zinc-700 bg-zinc-900 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3
-            id="radio-form-title"
-            className="font-medium text-lg text-zinc-200"
-          >
-            {station ? "Edit Station" : "Add Station"}
-          </h3>
-          <Button variant="link" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
+    <Modal isOpen={isOpen} onClose={onClose} aria-labelledby="radio-form-title">
+      <div className="w-full max-w-md">
+        <div className={panelClass}>
+          <ModalHeader
+            title={station ? "Edit Station" : "Add Station"}
+            titleId="radio-form-title"
+            onClose={onClose}
+            closeLabel="Close radio station form"
+          />
+          <form onSubmit={handleSubmit} className="space-y-3 p-3">
+            <div>
+              <label
+                htmlFor="radio-name"
+                className="mb-1 block font-medium text-sm text-zinc-400"
+              >
+                Name *
+              </label>
+              <Input
+                id="radio-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Station name"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="radio-stream-url"
+                className="mb-1 block font-medium text-sm text-zinc-400"
+              >
+                Stream URL *
+              </label>
+              <Input
+                id="radio-stream-url"
+                type="url"
+                value={formData.streamUrl}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    streamUrl: e.target.value,
+                  }))
+                }
+                placeholder="https://stream.example.com/radio"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="radio-home-page-url"
+                className="mb-1 block font-medium text-sm text-zinc-400"
+              >
+                Website URL (optional)
+              </label>
+              <Input
+                id="radio-home-page-url"
+                type="url"
+                value={formData.homePageUrl}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    homePageUrl: e.target.value,
+                  }))
+                }
+                placeholder="https://example.com"
+              />
+            </div>
+            {error && <InlineAlert variant="error">{error}</InlineAlert>}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : station ? "Update" : "Create"}
+              </Button>
+            </div>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="mb-1 block text-sm text-zinc-400">
-              Name *
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className={cn(
-                formInputClassName,
-                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
-              )}
-              placeholder="Station name"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="streamUrl"
-              className="mb-1 block text-sm text-zinc-400"
-            >
-              Stream URL *
-            </label>
-            <input
-              id="streamUrl"
-              type="url"
-              value={formData.streamUrl}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, streamUrl: e.target.value }))
-              }
-              className={cn(
-                formInputClassName,
-                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
-              )}
-              placeholder="https://stream.example.com/radio"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="homePageUrl"
-              className="mb-1 block text-sm text-zinc-400"
-            >
-              Website URL (optional)
-            </label>
-            <input
-              id="homePageUrl"
-              type="url"
-              value={formData.homePageUrl}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  homePageUrl: e.target.value,
-                }))
-              }
-              className={cn(
-                formInputClassName,
-                "border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-200 placeholder-zinc-500",
-              )}
-              placeholder="https://example.com"
-            />
-          </div>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="lg" disabled={saving}>
-              {saving ? "Saving..." : station ? "Update" : "Create"}
-            </Button>
-          </div>
-        </form>
       </div>
     </Modal>
   );
@@ -211,39 +198,44 @@ const DeleteConfirmModal = memo(function DeleteConfirmModal({
     <Modal
       isOpen={isOpen && station !== null}
       onClose={onClose}
-      overlayClassName="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/60"
       aria-labelledby="delete-radio-station-title"
+      aria-describedby="delete-radio-station-description"
     >
-      <div className="w-full max-w-sm rounded-sm border border-zinc-700 bg-zinc-900 p-6">
-        <h3
-          id="delete-radio-station-title"
-          className="mb-2 font-medium text-lg text-zinc-200"
-        >
-          Delete Station
-        </h3>
-        <p className="mb-4 text-sm text-zinc-400">
-          Are you sure you want to delete &quot;{station?.name}&quot;? This
-          action cannot be undone.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="lg"
-            onClick={onClose}
-            disabled={deleting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            size="lg"
-            onClick={onConfirm}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </Button>
+      <div className="w-full max-w-sm">
+        <div className={panelClass}>
+          <ModalHeader
+            title="Delete Station"
+            titleId="delete-radio-station-title"
+            onClose={onClose}
+            closeLabel="Cancel deleting radio station"
+          />
+          <div className="space-y-4 p-3">
+            <p
+              id="delete-radio-station-description"
+              className="text-sm text-zinc-400"
+            >
+              Are you sure you want to delete &quot;{station?.name}&quot;? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={onConfirm}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </Modal>
@@ -278,50 +270,57 @@ const RadioCard = memo(function RadioCard({
   );
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={`group flex w-full cursor-pointer flex-row items-center gap-3 rounded-sm border p-3 text-left transition-colors ${
+    <div
+      className={cn(
+        "group flex w-full items-center rounded-sm border transition-colors",
         isPlaying
           ? "border-indigo-500 bg-indigo-500/10"
-          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-      }`}
+          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
+      )}
     >
-      <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm ${
-          isPlaying
-            ? "bg-indigo-500/20 text-indigo-400"
-            : "bg-zinc-800 text-zinc-500"
-        }`}
+      <button
+        type="button"
+        onClick={handleClick}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 p-3 text-left"
       >
-        <Radio className="h-4 w-4" />
-      </div>
-      <div className="flex h-full min-w-0 flex-1 flex-col justify-between">
-        <h3
-          className={`truncate font-medium text-sm ${
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-sm",
             isPlaying
-              ? "text-indigo-400"
-              : "text-zinc-200 group-hover:text-indigo-400"
-          }`}
+              ? "bg-indigo-500/20 text-indigo-400"
+              : "bg-zinc-800 text-zinc-500",
+          )}
         >
-          {station.name}
-        </h3>
+          <Radio className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3
+            className={cn(
+              "truncate font-medium text-sm",
+              isPlaying
+                ? "text-indigo-400"
+                : "text-zinc-200 group-hover:text-indigo-400",
+            )}
+          >
+            {station.name}
+          </h3>
+        </div>
+      </button>
+      <div className="flex shrink-0 items-center gap-1 pr-3">
         {station.homePageUrl && (
           <a
             href={station.homePageUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 truncate text-xs text-zinc-500 hover:text-zinc-300"
+            title="Open station website"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
           >
             <ExternalLink className="h-3 w-3" />
-            Website
+            <span className="sr-only">Open station website</span>
           </a>
         )}
-      </div>
-      <div className="flex items-center gap-1">
         {isPlaying ? (
-          <>
+          <div className="flex items-center gap-1 pl-1">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
             <span
               className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400"
@@ -331,9 +330,9 @@ const RadioCard = memo(function RadioCard({
               className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400"
               style={{ animationDelay: "0.4s" }}
             />
-          </>
+          </div>
         ) : (
-          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -355,7 +354,7 @@ const RadioCard = memo(function RadioCard({
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 });
 
@@ -532,7 +531,7 @@ export const RadioList = memo(function RadioList({ client }: RadioListProps) {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex items-start justify-between pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 pb-4">
         <div>
           <h2 className="font-medium text-lg text-zinc-200">Internet Radio</h2>
           <p className="text-sm text-zinc-500">
@@ -540,7 +539,7 @@ export const RadioList = memo(function RadioList({ client }: RadioListProps) {
             available
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button onClick={handleOpenCreate}>
             <Plus className="h-4 w-4" />
             Add

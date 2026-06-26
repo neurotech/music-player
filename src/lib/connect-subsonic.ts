@@ -18,8 +18,7 @@ export async function connectSubsonicClient(
   } catch (err) {
     return {
       ok: false,
-      error:
-        err instanceof Error ? err.message : "Failed to connect to server",
+      error: err instanceof Error ? err.message : "Failed to connect to server",
     };
   }
 }

@@ -158,7 +158,7 @@ function App() {
     <main className="flex h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden transition-all duration-300">
-          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 animate-fade-in flex-col overflow-hidden p-4">
+          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 animate-fade-in flex-col overflow-hidden px-4">
             {client ? (
               <>
                 <div className="min-h-0 flex-1 overflow-hidden">

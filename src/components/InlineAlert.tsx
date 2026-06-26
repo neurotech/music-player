@@ -15,7 +15,11 @@ interface InlineAlertProps {
   className?: string;
 }
 
-export function InlineAlert({ variant, children, className }: InlineAlertProps) {
+export function InlineAlert({
+  variant,
+  children,
+  className,
+}: InlineAlertProps) {
   return (
     <p
       className={cn(

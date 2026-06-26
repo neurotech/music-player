@@ -40,28 +40,30 @@ const AlbumCard = memo(function AlbumCard({
   return (
     <button
       type="button"
-      className="group flex cursor-pointer flex-col items-start text-left"
+      className="group flex w-full min-w-0 cursor-pointer flex-col items-start gap-1 text-left"
       style={{ contain: "layout style paint" }}
       title={`${album.name} by ${album.artist}`}
       onClick={handleClick}
     >
-      <div className="mb-1.5 aspect-square w-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
+      <div className="aspect-square w-full overflow-hidden rounded-sm border border-zinc-800 bg-zinc-900">
         <CoverArt url={coverUrl} alt={album.name} frame="fill" />
       </div>
       {album.name && album.name !== "[Unknown Album]" ? (
-        <>
-          <h3 className="truncate font-medium text-sm text-zinc-200 group-hover:text-indigo-400">
+        <div>
+          <h3 className="w-full truncate font-medium text-sm text-zinc-200 group-hover:text-indigo-400">
             {album.name}
           </h3>
-          <p className="truncate text-sm text-zinc-500">{album.artist}</p>
-        </>
+          <p className="w-full truncate text-sm text-zinc-500">
+            {album.artist}
+          </p>
+        </div>
       ) : (
-        <>
-          <h3 className="truncate font-medium text-sm text-zinc-200 group-hover:text-indigo-400">
+        <div>
+          <h3 className="w-full truncate font-medium text-sm text-zinc-200 group-hover:text-indigo-400">
             {album.artist}
           </h3>
-          <p className="truncate text-sm text-zinc-800">?</p>
-        </>
+          <p className="w-full truncate text-sm text-zinc-800">?</p>
+        </div>
       )}
     </button>
   );
@@ -225,7 +227,10 @@ export const AlbumGrid = memo(function AlbumGrid({
         if (albumCount !== null) {
           const remaining = albumCount - currentPage * PAGE_SIZE;
           const pageSize = Math.min(PAGE_SIZE, Math.max(0, remaining));
-          const offset = Math.max(0, albumCount - (currentPage + 1) * PAGE_SIZE);
+          const offset = Math.max(
+            0,
+            albumCount - (currentPage + 1) * PAGE_SIZE,
+          );
           albumList =
             pageSize > 0
               ? await client.getAlbumList(sortType, pageSize, offset)
@@ -460,10 +465,10 @@ export const AlbumGrid = memo(function AlbumGrid({
 
           <Button
             variant="secondary"
-            size="sm"
+            size="icon"
             onClick={onOpenSettings}
             title="Settings"
-            className="border-zinc-800 bg-zinc-900 px-2 py-1.75 hover:border-zinc-700 hover:bg-zinc-900"
+            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
           >
             <Settings
               className="h-3.5 w-3.5 text-zinc-400"
@@ -473,10 +478,10 @@ export const AlbumGrid = memo(function AlbumGrid({
 
           <Button
             variant="secondary"
-            size="sm"
+            size="icon"
             onClick={onDisconnect}
             title="Disconnect from server"
-            className="border-zinc-800 bg-zinc-900 px-2 py-1.75 hover:border-zinc-700 hover:bg-zinc-900"
+            className="border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-900"
           >
             <LogOut
               className="h-3.5 w-3.5 text-zinc-400"

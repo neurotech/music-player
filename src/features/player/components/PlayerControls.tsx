@@ -61,8 +61,8 @@ export function PlayerControls({
   const hasContent = Boolean(state.currentTrack || state.currentRadio);
 
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4 p-3">
-      <div className="flex items-center gap-1 border-zinc-800 border-r pr-4">
+    <div className="grid grid-cols-3 items-center justify-between gap-4 p-3">
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
@@ -91,6 +91,45 @@ export function PlayerControls({
         >
           <Radio className="h-4 w-4" />
         </Button>
+        {discordConnected && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleToggleDiscord}
+            className={discordEnabled ? "text-indigo-400" : "text-zinc-500"}
+            aria-label={
+              discordEnabled
+                ? "Disable Discord status"
+                : "Enable Discord status"
+            }
+            title={
+              discordEnabled ? "Discord status: On" : "Discord status: Off"
+            }
+          >
+            {discordEnabled ? (
+              <MessageCircle className="h-4 w-4" />
+            ) : (
+              <MessageCircleOff className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+
+        {onImmersiveToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onImmersiveToggle}
+            className={
+              isImmersiveOpen
+                ? "bg-indigo-600 text-white hover:bg-indigo-600"
+                : "text-zinc-400"
+            }
+            aria-label="Immersive now playing"
+            title="Immersive now playing (global shortcut: OS prefix + backslash)"
+          >
+            <Sparkles className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-2">
@@ -150,7 +189,7 @@ export function PlayerControls({
       </div>
 
       <div className="flex items-center justify-end gap-4">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -174,47 +213,6 @@ export function PlayerControls({
             aria-label="Volume"
           />
         </div>
-
-        {discordConnected && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleToggleDiscord}
-            className={discordEnabled ? "text-indigo-400" : "text-zinc-500"}
-            aria-label={
-              discordEnabled
-                ? "Disable Discord status"
-                : "Enable Discord status"
-            }
-            title={
-              discordEnabled ? "Discord status: On" : "Discord status: Off"
-            }
-          >
-            {discordEnabled ? (
-              <MessageCircle className="h-4 w-4" />
-            ) : (
-              <MessageCircleOff className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-
-        {onImmersiveToggle && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onImmersiveToggle}
-            className={
-              isImmersiveOpen
-                ? "bg-indigo-600 text-white hover:bg-indigo-600"
-                : "text-zinc-400"
-            }
-            aria-label="Immersive now playing"
-            title="Immersive now playing (global shortcut: OS prefix + backslash)"
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
-        )}
-
         {!isRadioPlaying && (
           <Button
             variant="ghost"
@@ -222,7 +220,7 @@ export function PlayerControls({
             onClick={onQueueClick}
             className={
               isQueueOpen
-                ? "bg-indigo-600 text-white hover:bg-indigo-600"
+                ? "bg-indigo-400 text-indigo-950 hover:bg-indigo-600"
                 : "text-zinc-400"
             }
             aria-label="Queue"

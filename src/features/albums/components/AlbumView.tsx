@@ -135,9 +135,7 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
 
   const coverEntries = useMemo(
     () =>
-      album?.coverArt
-        ? [{ key: "view", coverArtId: album.coverArt }]
-        : [],
+      album?.coverArt ? [{ key: "view", coverArtId: album.coverArt }] : [],
     [album?.coverArt],
   );
   const coverMap = useCoverArtUrls(client, coverEntries, 400);
@@ -212,9 +210,14 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
   const currentTrackId = playerState.currentTrack?.id;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="shrink-0 pb-4">
-        <Button variant="link" size="sm" onClick={onBack} className="mb-4">
+    <div className="flex h-full w-full flex-col gap-4 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={onBack}
+          className="self-start"
+        >
           <ChevronLeft className="h-3.5 w-3.5" />
           Back to Albums
         </Button>
@@ -241,12 +244,14 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
             </div>
           </button>
 
-          <div className="flex flex-col justify-between gap-1">
+          <div className="flex min-w-0 flex-col justify-between gap-1">
             <div>
-              <h1 className="font-semibold text-4xl text-zinc-100">
+              <h1 className="wrap-break-word font-semibold text-3xl text-zinc-100 sm:text-4xl">
                 {album.name}
               </h1>
-              <p className="text-xl text-zinc-400">{album.artist}</p>
+              <p className="wrap-break-word text-xl text-zinc-400">
+                {album.artist}
+              </p>
             </div>
 
             <p className="text-sm text-zinc-500">
