@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-type InlineAlertVariant = "error" | "success";
+type InlineAlertVariant = "error" | "info" | "success";
 
 const variantClass: Record<InlineAlertVariant, string> = {
   error: "border-red-900/50 bg-red-950/50 text-red-400",
+  info: "border-indigo-900/50 bg-indigo-950/50 text-indigo-300",
   success: "border-green-900/50 bg-green-950/50 text-green-400",
 };
 

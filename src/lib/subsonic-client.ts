@@ -39,6 +39,17 @@ interface RandomSongsResponse {
   };
 }
 
+interface ScanStatusResponse {
+  scanStatus?: {
+    scanning: boolean;
+    count?: number;
+    folderCount?: number;
+    error?: string;
+    scanType?: string;
+    elapsedTime?: number;
+  };
+}
+
 function generateSalt(length = 8): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   const randomValues = new Uint32Array(length);
@@ -416,6 +427,16 @@ export class SubsonicClient {
       size: size.toString(),
     });
     return response.randomSongs?.song || [];
+  }
+
+  async startLibraryScan(fullScan = false): Promise<ScanStatusResponse> {
+    return await this.request<ScanStatusResponse>("startScan", {
+      fullScan: fullScan.toString(),
+    });
+  }
+
+  async getLibraryScanStatus(): Promise<ScanStatusResponse> {
+    return await this.request<ScanStatusResponse>("getScanStatus");
   }
 
   async getInternetRadioStations(): Promise<InternetRadioStation[]> {

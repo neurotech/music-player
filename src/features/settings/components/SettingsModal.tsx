@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Database, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { InlineAlert } from "@/components/InlineAlert";
 import { Input } from "@/components/Input";
@@ -6,6 +7,7 @@ import { Modal } from "@/components/Modal";
 import { ModalHeader } from "@/components/ModalHeader";
 import { panelClass } from "@/components/panel-styles";
 import { player } from "@/features/player/lib/player";
+import type { SubsonicClient } from "@/lib/subsonic-client";
 import {
   type DiscordConfig,
   loadDiscordConfig,
@@ -15,14 +17,42 @@ import {
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  client: SubsonicClient;
 }
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+type LibraryRefreshType = "quick" | "full";
+type LibraryRefreshStatus = "idle" | "running" | "success" | "error";
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatLibraryRefreshMessage(
+  type: LibraryRefreshType,
+  state: "running" | "success",
+  count?: number,
+) {
+  const label =
+    type === "full" ? "Full library refresh" : "Quick library refresh";
+  const countText =
+    count === undefined ? "" : ` (${count} item${count === 1 ? "" : "s"})`;
+  return state === "running"
+    ? `${label} is running${countText}`
+    : `${label} completed${countText}`;
+}
+
+export function SettingsModal({ isOpen, onClose, client }: SettingsModalProps) {
   const [discordEnabled, setDiscordEnabled] = useState(false);
   const [applicationId, setApplicationId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [refreshingLibrary, setRefreshingLibrary] =
+    useState<LibraryRefreshType | null>(null);
+  const [libraryRefreshStatus, setLibraryRefreshStatus] =
+    useState<LibraryRefreshStatus>("idle");
+  const [libraryRefreshMessage, setLibraryRefreshMessage] = useState("");
+  const libraryRefreshRunIdRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,7 +61,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setApplicationId(config.applicationId);
         setStatus("idle");
         setErrorMessage("");
+        setLibraryRefreshStatus("idle");
+        setLibraryRefreshMessage("");
+        setRefreshingLibrary(null);
       });
+    } else {
+      libraryRefreshRunIdRef.current += 1;
     }
   }, [isOpen]);
 
@@ -66,9 +101,64 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   }
 
+  async function handleLibraryRefresh(type: LibraryRefreshType) {
+    const runId = libraryRefreshRunIdRef.current + 1;
+    libraryRefreshRunIdRef.current = runId;
+    setRefreshingLibrary(type);
+    setLibraryRefreshStatus("running");
+    setLibraryRefreshMessage(formatLibraryRefreshMessage(type, "running"));
+
+    const isCurrentRefresh = () => libraryRefreshRunIdRef.current === runId;
+
+    try {
+      let response = await client.startLibraryScan(type === "full");
+
+      while (isCurrentRefresh() && response.scanStatus?.scanning) {
+        setLibraryRefreshStatus("running");
+        setLibraryRefreshMessage(
+          formatLibraryRefreshMessage(
+            type,
+            "running",
+            response.scanStatus.count,
+          ),
+        );
+        await wait(2000);
+        if (!isCurrentRefresh()) return;
+        response = await client.getLibraryScanStatus();
+      }
+
+      if (!isCurrentRefresh()) return;
+
+      if (response.scanStatus?.error) {
+        setLibraryRefreshStatus("error");
+        setLibraryRefreshMessage(response.scanStatus.error);
+        return;
+      }
+
+      setLibraryRefreshStatus("success");
+      setLibraryRefreshMessage(
+        formatLibraryRefreshMessage(
+          type,
+          "success",
+          response.scanStatus?.count,
+        ),
+      );
+    } catch (err) {
+      if (!isCurrentRefresh()) return;
+      setLibraryRefreshStatus("error");
+      setLibraryRefreshMessage(
+        err instanceof Error ? err.message : "Failed to start library refresh",
+      );
+    } finally {
+      if (isCurrentRefresh()) {
+        setRefreshingLibrary(null);
+      }
+    }
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} aria-labelledby="settings-title">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-md">
         <div className={panelClass}>
           <ModalHeader
             title="Settings"
@@ -124,6 +214,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </p>
               </div>
             </div>
+
+            <div className="border-zinc-800 border-t pt-4">
+              <h3 className="mb-2 font-semibold text-sm text-zinc-300">
+                Administration
+              </h3>
+              <p className="mb-3 text-sm text-zinc-500">
+                Ask Navidrome to refresh its music library.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => handleLibraryRefresh("quick")}
+                  disabled={refreshingLibrary !== null}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      refreshingLibrary === "quick" ? "animate-spin" : ""
+                    }`}
+                  />
+                  Quick Refresh
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleLibraryRefresh("full")}
+                  disabled={refreshingLibrary !== null}
+                >
+                  <Database className="h-4 w-4" />
+                  {refreshingLibrary === "full"
+                    ? "Refreshing..."
+                    : "Full Refresh"}
+                </Button>
+              </div>
+            </div>
+
+            {libraryRefreshStatus === "error" && libraryRefreshMessage && (
+              <InlineAlert variant="error">{libraryRefreshMessage}</InlineAlert>
+            )}
+
+            {libraryRefreshStatus === "running" && libraryRefreshMessage && (
+              <InlineAlert variant="info">{libraryRefreshMessage}</InlineAlert>
+            )}
+
+            {libraryRefreshStatus === "success" && libraryRefreshMessage && (
+              <InlineAlert variant="success">
+                {libraryRefreshMessage}
+              </InlineAlert>
+            )}
 
             {status === "error" && errorMessage && (
               <InlineAlert variant="error">{errorMessage}</InlineAlert>

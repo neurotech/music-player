@@ -182,6 +182,7 @@ function App() {
                 <SettingsModal
                   isOpen={isSettingsOpen}
                   onClose={() => setIsSettingsOpen(false)}
+                  client={client}
                 />
                 <SearchModal
                   isOpen={isSearchOpen}
