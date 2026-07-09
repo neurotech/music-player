@@ -13,6 +13,7 @@ interface AlbumViewProps {
   albumId: string;
   client: SubsonicClient;
   onBack: () => void;
+  onArtistClick: (artistId: string, artistName: string) => void;
 }
 
 function AnimatedText({ text, paused }: { text: string; paused: boolean }) {
@@ -126,7 +127,12 @@ const SongRow = memo(function SongRow({
   );
 });
 
-export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
+export function AlbumView({
+  albumId,
+  client,
+  onBack,
+  onArtistClick,
+}: AlbumViewProps) {
   const [album, setAlbum] = useState<AlbumWithSongs | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,9 +255,23 @@ export function AlbumView({ albumId, client, onBack }: AlbumViewProps) {
               <h1 className="wrap-break-word font-semibold text-3xl text-zinc-100 sm:text-4xl">
                 {album.name}
               </h1>
-              <p className="wrap-break-word text-xl text-zinc-400">
-                {album.artist}
-              </p>
+              {album.artistId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (album.artistId) {
+                      onArtistClick(album.artistId, album.artist);
+                    }
+                  }}
+                  className="wrap-break-word cursor-pointer text-left text-xl text-zinc-400 transition-colors hover:text-indigo-400"
+                >
+                  {album.artist}
+                </button>
+              ) : (
+                <p className="wrap-break-word text-xl text-zinc-400">
+                  {album.artist}
+                </p>
+              )}
             </div>
 
             <p className="text-sm text-zinc-500">

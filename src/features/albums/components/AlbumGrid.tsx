@@ -28,7 +28,7 @@ interface AlbumCardProps {
   onAlbumClick: (albumId: string) => void;
 }
 
-const AlbumCard = memo(function AlbumCard({
+export const AlbumCard = memo(function AlbumCard({
   album,
   coverUrl,
   onAlbumClick,

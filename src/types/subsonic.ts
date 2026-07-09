@@ -64,6 +64,12 @@ export interface AlbumWithSongs extends Album {
   song: Song[];
 }
 
+export interface Artist {
+  id: string;
+  name: string;
+  album?: Album[];
+}
+
 export interface SearchResult {
   artist?: { id: string; name: string }[];
   album?: Album[];

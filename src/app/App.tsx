@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AlbumGrid } from "@/features/albums/components/AlbumGrid";
 import { AlbumView } from "@/features/albums/components/AlbumView";
+import { ArtistAlbumsView } from "@/features/albums/components/ArtistAlbumsView";
 import { SearchModal } from "@/features/albums/components/SearchModal";
 import { ConnectionForm } from "@/features/auth/components/ConnectionForm";
 import {
@@ -37,6 +38,10 @@ function App() {
   const [savedCredentials, setSavedCredentials] =
     useState<SubsonicCredentials | null>(null);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
@@ -53,9 +58,33 @@ function App() {
   } = useAlbumNavigation(setSelectedAlbumId);
 
   const navigateToAlbum = useCallback(
-    (albumId: string) => navigateTo(albumId),
+    (albumId: string) => {
+      setSelectedArtist(null);
+      navigateTo(albumId);
+    },
     [navigateTo],
   );
+
+  const navigateToArtist = useCallback(
+    (artistId: string, artistName: string) => {
+      setSelectedArtist({ id: artistId, name: artistName });
+    },
+    [],
+  );
+
+  const navigateBackFromCurrentView = useCallback(() => {
+    if (selectedArtist) {
+      setSelectedArtist(null);
+      return;
+    }
+
+    navigateBack();
+  }, [navigateBack, selectedArtist]);
+
+  const navigateForwardFromCurrentView = useCallback(() => {
+    setSelectedArtist(null);
+    navigateForward();
+  }, [navigateForward]);
 
   const openSearch = useCallback(() => setIsSearchOpen(true), []);
 
@@ -67,7 +96,10 @@ function App() {
   }, [client]);
 
   useAppGlobalShortcuts(navigateToAlbum, openSearch, toggleImmersiveNowPlaying);
-  useMouseBackForward(navigateBack, navigateForward);
+  useMouseBackForward(
+    navigateBackFromCurrentView,
+    navigateForwardFromCurrentView,
+  );
   useSpacePlayPause();
 
   useEffect(() => {
@@ -141,6 +173,7 @@ function App() {
     setClient(null);
     setSavedCredentials(null);
     setSelectedAlbumId(null);
+    setSelectedArtist(null);
     persistSelectedAlbumId(null);
     setActiveView("albums");
     resetHistory();
@@ -148,6 +181,7 @@ function App() {
 
   function handleViewChange(view: "albums" | "radio") {
     setActiveView(view);
+    setSelectedArtist(null);
     if (view === "radio") {
       setSelectedAlbumId(null);
       persistSelectedAlbumId(null);
@@ -164,16 +198,25 @@ function App() {
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {activeView === "radio" ? (
                     <RadioList client={client} />
+                  ) : selectedArtist ? (
+                    <ArtistAlbumsView
+                      artistId={selectedArtist.id}
+                      artistName={selectedArtist.name}
+                      client={client}
+                      onAlbumClick={navigateToAlbum}
+                      onBack={() => setSelectedArtist(null)}
+                    />
                   ) : selectedAlbumId ? (
                     <AlbumView
                       albumId={selectedAlbumId}
                       client={client}
                       onBack={() => navigateTo(null)}
+                      onArtistClick={navigateToArtist}
                     />
                   ) : (
                     <AlbumGrid
                       client={client}
-                      onAlbumClick={navigateTo}
+                      onAlbumClick={navigateToAlbum}
                       onOpenSettings={() => setIsSettingsOpen(true)}
                       onDisconnect={handleDisconnect}
                     />
@@ -188,7 +231,7 @@ function App() {
                   isOpen={isSearchOpen}
                   onClose={() => setIsSearchOpen(false)}
                   client={client}
-                  onAlbumClick={navigateTo}
+                  onAlbumClick={navigateToAlbum}
                 />
               </>
             ) : (
@@ -215,7 +258,7 @@ function App() {
               onViewChange={handleViewChange}
               isImmersiveOpen={isImmersiveNowPlayingOpen}
               onImmersiveToggle={toggleImmersiveNowPlaying}
-              onAlbumClick={navigateTo}
+              onAlbumClick={navigateToAlbum}
             />
           )}
         </div>
@@ -227,7 +270,7 @@ function App() {
               persistIsQueueOpen(false);
             }}
             client={client}
-            onAlbumClick={navigateTo}
+            onAlbumClick={navigateToAlbum}
           />
         )}
       </div>

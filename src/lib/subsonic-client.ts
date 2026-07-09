@@ -2,6 +2,7 @@ import type {
   Album,
   AlbumListType,
   AlbumWithSongs,
+  Artist,
   InternetRadioStation,
   SearchResult,
   Song,
@@ -17,6 +18,10 @@ interface AlbumListResponse {
 
 interface AlbumResponse {
   album: AlbumWithSongs;
+}
+
+interface ArtistResponse {
+  artist: Artist;
 }
 
 interface PingResponse {
@@ -402,6 +407,11 @@ export class SubsonicClient {
   async getAlbum(id: string): Promise<AlbumWithSongs> {
     const response = await this.request<AlbumResponse>("getAlbum", { id });
     return response.album;
+  }
+
+  async getArtist(id: string): Promise<Artist> {
+    const response = await this.request<ArtistResponse>("getArtist", { id });
+    return response.artist;
   }
 
   async getStreamUrl(songId: string): Promise<string> {
