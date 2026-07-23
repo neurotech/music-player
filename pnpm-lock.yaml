@@ -9,19 +9,19 @@ importers:
   .:
     dependencies:
       '@tauri-apps/api':
-        specifier: ^2
+        specifier: 2.10.1
         version: 2.10.1
       '@tauri-apps/plugin-global-shortcut':
-        specifier: ^2.3.1
+        specifier: 2.3.1
         version: 2.3.1
       '@tauri-apps/plugin-os':
-        specifier: ^2.3.2
+        specifier: 2.3.2
         version: 2.3.2
       '@tauri-apps/plugin-store':
-        specifier: ^2.4.2
+        specifier: 2.4.2
         version: 2.4.2
       '@tauri-apps/plugin-window-state':
-        specifier: ^2.4.1
+        specifier: 2.4.1
         version: 2.4.1
       class-variance-authority:
         specifier: ^0.7.1
@@ -46,7 +46,7 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2
       '@tauri-apps/cli':
-        specifier: ^2
+        specifier: 2.10.1
         version: 2.10.1
       '@types/react':
         specifier: ^19.0.0
